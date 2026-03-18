@@ -7,7 +7,7 @@ export default function Calendar() {
         <h1 className="text-2xl font-bold text-text-primary">Calendar</h1>
         <p className="text-text-secondary text-sm mt-0.5">Plan your days and track events</p>
       </div>
-      <div className="flex-1 min-h-0 overflow-hidden">
+      <div className="flex-1 min-h-0 lg:overflow-hidden overflow-auto">
         <CalendarView />
       </div>
     </div>

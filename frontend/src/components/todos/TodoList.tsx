@@ -224,7 +224,7 @@ export default function TodoList() {
                 </span>
               </button>
               <button
-                className="opacity-0 group-hover:opacity-100 p-1 ml-1 rounded-lg hover:bg-red-50 text-text-secondary hover:text-red-500 transition-all"
+                className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-1 ml-1 rounded-lg hover:bg-red-50 text-text-secondary hover:text-red-500 transition-all"
                 onClick={() => {
                   if (window.confirm(`Delete list "${list.name}"?`)) {
                     deleteListMutation.mutate(list.id);
@@ -251,7 +251,7 @@ export default function TodoList() {
 
         {/* Add todo form */}
         <div className="px-5 py-3 border-b border-border flex-shrink-0">
-          <form onSubmit={handleAddTodo} className="flex gap-2">
+          <form onSubmit={handleAddTodo} className="flex flex-col sm:flex-row gap-2">
             <input
               type="text"
               className="input-field flex-1 text-sm py-2.5"
@@ -259,23 +259,25 @@ export default function TodoList() {
               value={newTodoText}
               onChange={(e) => setNewTodoText(e.target.value)}
             />
-            <select
-              className="input-field text-sm py-2.5 w-28 cursor-pointer"
-              value={newTodoPriority}
-              onChange={(e) => setNewTodoPriority(e.target.value as Priority)}
-            >
-              <option value="low">🟢 Low</option>
-              <option value="medium">🟡 Medium</option>
-              <option value="high">🔴 High</option>
-            </select>
-            <button
-              type="submit"
-              className="btn-primary py-2.5 px-4 text-sm flex-shrink-0"
-              disabled={!newTodoText.trim() || createTodoMutation.isPending}
-            >
-              <Plus className="w-4 h-4" />
-              Add
-            </button>
+            <div className="flex gap-2 sm:contents">
+              <select
+                className="input-field text-sm py-2.5 flex-1 sm:w-28 sm:flex-none cursor-pointer"
+                value={newTodoPriority}
+                onChange={(e) => setNewTodoPriority(e.target.value as Priority)}
+              >
+                <option value="low">🟢 Low</option>
+                <option value="medium">🟡 Medium</option>
+                <option value="high">🔴 High</option>
+              </select>
+              <button
+                type="submit"
+                className="btn-primary py-2.5 px-4 text-sm flex-shrink-0"
+                disabled={!newTodoText.trim() || createTodoMutation.isPending}
+              >
+                <Plus className="w-4 h-4" />
+                Add
+              </button>
+            </div>
           </form>
         </div>
 

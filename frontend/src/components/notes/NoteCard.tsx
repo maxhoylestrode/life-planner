@@ -102,8 +102,8 @@ export default function NoteCard({
         <p className="text-text-muted text-xs">{formatDate(note.updatedAt)}</p>
       </div>
 
-      {/* Actions - shown on hover */}
-      <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-all duration-150">
+      {/* Actions - always visible on touch, hover on desktop */}
+      <div className="absolute top-3 right-3 flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-150">
         <div className="relative">
           <button
             className="p-1.5 rounded-lg bg-white/80 hover:bg-white text-text-secondary hover:text-primary shadow-warm transition-all"

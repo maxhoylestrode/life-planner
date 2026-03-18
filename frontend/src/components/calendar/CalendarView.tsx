@@ -201,7 +201,7 @@ export default function CalendarView() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full gap-0">
+    <div className="flex flex-col lg:flex-row lg:h-full gap-0">
       {/* Calendar Grid */}
       <div className="flex-1 flex flex-col min-w-0 p-4 lg:p-6">
         {/* Month navigation */}
@@ -351,7 +351,7 @@ export default function CalendarView() {
           {selectedEvents.length === 0 && (
             <div className="flex flex-col items-center justify-center h-32 text-center">
               <p className="text-text-secondary text-sm">Nothing scheduled</p>
-              <p className="text-text-muted text-xs mt-1">Double-click a day to add an event</p>
+              <p className="text-text-muted text-xs mt-1">Tap the + button or double-click a day to add an event</p>
             </div>
           )}
 
@@ -379,7 +379,7 @@ export default function CalendarView() {
                   <p className="text-xs text-text-muted mt-1 line-clamp-2">{ev.description}</p>
                 )}
               </div>
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                 <button
                   className="p-1.5 rounded-lg hover:bg-border text-text-secondary hover:text-primary transition-colors"
                   onClick={() => openEditEvent(ev)}
