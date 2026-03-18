@@ -138,7 +138,7 @@ export default function TodoList() {
         : lists.find((l) => l.id === selectedListId)?.name || 'Tasks';
 
   return (
-    <div className="flex flex-col lg:flex-row h-full gap-0">
+    <div className="flex flex-col lg:flex-row lg:h-full gap-0">
       {/* Lists sidebar */}
       <div className="w-full lg:w-56 xl:w-64 flex-shrink-0 border-b lg:border-b-0 lg:border-r border-border bg-surface p-4">
         <div className="flex items-center justify-between mb-3">

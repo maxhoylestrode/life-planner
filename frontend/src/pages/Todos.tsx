@@ -15,7 +15,7 @@ export default function Todos() {
       </div>
 
       {/* Main list */}
-      <div className="flex-1 min-h-0 overflow-hidden border-t border-border">
+      <div className="flex-1 min-h-0 lg:overflow-hidden overflow-auto border-t border-border">
         <TodoList />
       </div>
     </div>
