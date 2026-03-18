@@ -28,6 +28,8 @@ model Note {
   updatedAt DateTime @updatedAt
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Event {
@@ -42,6 +44,8 @@ model Event {
   updatedAt   DateTime  @updatedAt
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startTime])
 }
 
 model TodoList {
@@ -51,6 +55,8 @@ model TodoList {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   todos     Todo[]
+
+  @@index([userId])
 }
 
 model Todo {
@@ -65,4 +71,7 @@ model Todo {
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   listId      String?
   list        TodoList? @relation(fields: [listId], references: [id], onDelete: SetNull)
+
+  @@index([userId, completed])
+  @@index([listId])
 }

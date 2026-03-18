@@ -98,12 +98,10 @@ export default function TodoList() {
     mutationFn: async (id: string) => {
       await apiClient.delete(`/todos/lists/${id}`);
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ['todo-lists'] });
       queryClient.invalidateQueries({ queryKey: ['todos'] });
-      if (selectedListId === deleteListMutation.variables) {
-        setSelectedListId(null);
-      }
+      setSelectedListId((current) => (current === id ? null : current));
     },
   });
 

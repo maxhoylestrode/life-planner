@@ -3,7 +3,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 
 COPY . .
 
@@ -43,8 +43,10 @@ server {
     }
 
     # Proxy API calls to backend (when using docker-compose)
+    resolver 127.0.0.11 valid=30s;
     location /api/ {
-        proxy_pass http://backend:3001;
+        set $upstream http://backend:3001;
+        proxy_pass $upstream;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
