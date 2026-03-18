@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Play, Pause, RotateCcw, ChevronDown, ChevronUp, Trash2, Check } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../api/client';
 
 const WORK_DURATION = 30 * 60;
 const BREAK_DURATION = 5 * 60;
+const TIMER_STATE_KEY = 'coffee-timer-state';
 
 type Phase = 'idle' | 'working' | 'break';
 
@@ -14,6 +15,81 @@ interface Session {
   completedAt: string;
   durationMins: number;
 }
+
+// Persisted timer state — uses absolute timestamps so it's accurate across
+// tab switches, navigation away, and browser throttling of background timers.
+interface TimerState {
+  phase: Phase;
+  isRunning: boolean;
+  endTime: number | null;       // Date.now() ms when current phase ends
+  pausedTimeLeft: number;       // seconds left when paused (used when !isRunning)
+  workStartTime: number | null; // Date.now() ms when current work phase started
+  totalWorkSecs: number;        // accumulated work secs from previous phases
+  currentTask: string;
+}
+
+const DEFAULT_STATE: TimerState = {
+  phase: 'idle',
+  isRunning: false,
+  endTime: null,
+  pausedTimeLeft: WORK_DURATION,
+  workStartTime: null,
+  totalWorkSecs: 0,
+  currentTask: '',
+};
+
+function loadTimerState(): TimerState {
+  try {
+    const raw = localStorage.getItem(TIMER_STATE_KEY);
+    if (!raw) return DEFAULT_STATE;
+    return { ...DEFAULT_STATE, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_STATE;
+  }
+}
+
+function saveTimerState(s: TimerState) {
+  localStorage.setItem(TIMER_STATE_KEY, JSON.stringify(s));
+}
+
+// Fast-forward a running timer through any phase transitions that happened
+// while the page was away. Returns the updated state and a count of work
+// sessions that completed in the background (so we can auto-save them).
+function fastForward(s: TimerState, now: number): { state: TimerState; backgroundSessions: number } {
+  if (!s.isRunning || s.endTime === null) return { state: s, backgroundSessions: 0 };
+
+  let { phase, endTime, workStartTime, totalWorkSecs } = s;
+  let backgroundSessions = 0;
+
+  while (now >= endTime) {
+    if (phase === 'working') {
+      // Accumulate work time up to this phase end
+      if (workStartTime !== null) totalWorkSecs += Math.floor((endTime - workStartTime) / 1000);
+      workStartTime = null;
+      backgroundSessions++;
+      phase = 'break';
+      endTime += BREAK_DURATION * 1000;
+    } else {
+      // Break ended — start fresh work phase
+      phase = 'working';
+      workStartTime = endTime;
+      endTime += WORK_DURATION * 1000;
+    }
+  }
+
+  // If we're mid-working-phase, accumulate up to now
+  if (phase === 'working' && workStartTime !== null) {
+    totalWorkSecs += Math.floor((now - workStartTime) / 1000);
+    workStartTime = now; // reset base so we don't double-count
+  }
+
+  return {
+    state: { ...s, phase, endTime, workStartTime, totalWorkSecs },
+    backgroundSessions,
+  };
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60);
@@ -27,9 +103,8 @@ function formatMins(totalMins: number) {
 }
 
 function formatWorkTotal(totalSecs: number) {
-  const totalMins = Math.floor(totalSecs / 60);
-  if (totalMins >= 60) return `${Math.floor(totalMins / 60)}h ${totalMins % 60}m`;
-  return `${totalMins}m`;
+  const m = Math.floor(totalSecs / 60);
+  return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
 }
 
 function formatSessionTime(iso: string) {
@@ -39,7 +114,7 @@ function formatSessionTime(iso: string) {
 function formatDateHeading(iso: string) {
   const d = new Date(iso);
   const today = new Date();
-  const yesterday = new Date();
+  const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
   if (d.toDateString() === today.toDateString()) return 'Today';
   if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
@@ -53,8 +128,7 @@ function isoDateKey(iso: string) {
 function playChime() {
   try {
     const ctx = new AudioContext();
-    const freqs = [523.25, 659.25, 783.99];
-    freqs.forEach((freq, i) => {
+    [523.25, 659.25, 783.99].forEach((freq, i) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
@@ -68,30 +142,23 @@ function playChime() {
       osc.start(start);
       osc.stop(start + 0.5);
     });
-  } catch {
-    // AudioContext not available
-  }
+  } catch { /* AudioContext not available */ }
 }
 
 // ─── Coffee Cup SVG ───────────────────────────────────────────────────────────
 
 function CoffeeCup({ fillPercent, phase, isRunning }: { fillPercent: number; phase: Phase; isRunning: boolean }) {
   const cupTopY = 55, cupBottomY = 170, cupLeftX = 25, cupRightX = 155;
-  const innerHeight = cupBottomY - cupTopY;
-  const liquidHeight = (fillPercent / 100) * innerHeight;
+  const liquidHeight = ((fillPercent / 100) * (cupBottomY - cupTopY));
   const liquidY = cupBottomY - liquidHeight;
   const isBreak = phase === 'break';
   const liquidColor = isBreak ? '#6BAF7A' : '#6F4E37';
   const foamColor = isBreak ? '#A8D5B0' : '#C9956C';
 
-  const cupPath = `
-    M ${cupLeftX} ${cupTopY}
-    L ${cupLeftX + 4} ${cupBottomY - 10}
-    Q ${cupLeftX + 4} ${cupBottomY} ${cupLeftX + 14} ${cupBottomY}
-    L ${cupRightX - 14} ${cupBottomY}
-    Q ${cupRightX - 4} ${cupBottomY} ${cupRightX - 4} ${cupBottomY - 10}
-    L ${cupRightX} ${cupTopY} Z
-  `;
+  const cupPath = `M ${cupLeftX} ${cupTopY} L ${cupLeftX+4} ${cupBottomY-10}
+    Q ${cupLeftX+4} ${cupBottomY} ${cupLeftX+14} ${cupBottomY}
+    L ${cupRightX-14} ${cupBottomY} Q ${cupRightX-4} ${cupBottomY} ${cupRightX-4} ${cupBottomY-10}
+    L ${cupRightX} ${cupTopY} Z`;
 
   return (
     <svg viewBox="0 0 200 210" className="w-52 h-52" fill="none">
@@ -107,21 +174,17 @@ function CoffeeCup({ fillPercent, phase, isRunning }: { fillPercent: number; pha
           <stop offset="100%" stopColor="#FFF3E8" />
         </linearGradient>
       </defs>
-
       <path d={cupPath} fill="url(#cupGrad)" />
-
       {fillPercent > 0.5 && (
         <>
           <rect clipPath="url(#cupBodyClip)" x="0" y={liquidY} width="200" height={liquidHeight + 2} fill="url(#liquidGrad)" />
           <ellipse clipPath="url(#cupBodyClip)" cx="90" cy={liquidY} rx="57" ry="7" fill={foamColor} opacity="0.75" />
         </>
       )}
-
       <path d={cupPath} stroke="#3D2B1F" strokeWidth="2.5" strokeLinejoin="round" />
-      <line x1={cupLeftX - 6} y1={cupTopY} x2={cupRightX + 6} y2={cupTopY} stroke="#3D2B1F" strokeWidth="3" strokeLinecap="round" />
+      <line x1={cupLeftX-6} y1={cupTopY} x2={cupRightX+6} y2={cupTopY} stroke="#3D2B1F" strokeWidth="3" strokeLinecap="round" />
       <path d="M 151 82 Q 178 82 178 113 Q 178 144 151 144" stroke="#3D2B1F" strokeWidth="2.5" strokeLinecap="round" fill="none" />
       <ellipse cx="88" cy="183" rx="72" ry="9" fill="#FFF3E8" stroke="#3D2B1F" strokeWidth="2" />
-
       {isRunning && fillPercent > 15 && !isBreak && (
         <>
           <path d="M 58 48 Q 52 38 58 28 Q 64 18 58 8" stroke="#C4A090" strokeWidth="2.2" strokeLinecap="round">
@@ -138,7 +201,6 @@ function CoffeeCup({ fillPercent, phase, isRunning }: { fillPercent: number; pha
           </path>
         </>
       )}
-
       {isBreak && <text x="68" y="125" fontSize="36" textAnchor="middle">🌿</text>}
       {phase === 'idle' && <text x="68" y="128" fontSize="32" textAnchor="middle" opacity="0.4">☕</text>}
     </svg>
@@ -147,10 +209,8 @@ function CoffeeCup({ fillPercent, phase, isRunning }: { fillPercent: number; pha
 
 // ─── Label Modal ──────────────────────────────────────────────────────────────
 
-function LabelModal({ defaultLabel, onSave, onSkip }: { defaultLabel: string; onSave: (label: string) => void; onSkip: () => void }) {
+function LabelModal({ defaultLabel, onSave, onSkip }: { defaultLabel: string; onSave: (l: string) => void; onSkip: () => void }) {
   const [label, setLabel] = useState(defaultLabel);
-  const inputRef = (el: HTMLInputElement | null) => { if (el) { el.focus(); el.select(); } };
-
   return (
     <div className="modal-overlay" onClick={onSkip}>
       <div className="modal-content p-6 max-w-sm" onClick={e => e.stopPropagation()}>
@@ -159,7 +219,7 @@ function LabelModal({ defaultLabel, onSave, onSkip }: { defaultLabel: string; on
         <p className="text-sm text-text-secondary mb-4">What were you working on?</p>
         <form onSubmit={e => { e.preventDefault(); onSave(label.trim() || 'Work session'); }} className="space-y-3">
           <input
-            ref={inputRef}
+            autoFocus
             className="input-field"
             value={label}
             onChange={e => setLabel(e.target.value)}
@@ -184,23 +244,19 @@ function SessionLog({ sessions, onDelete }: { sessions: Session[]; onDelete: (id
   if (sessions.length === 0) return null;
 
   const groups: { dateKey: string; heading: string; items: Session[]; totalMins: number }[] = [];
-  for (const s of [...sessions]) {
+  for (const s of sessions) {
     const key = isoDateKey(s.completedAt);
-    const existing = groups.find(g => g.dateKey === key);
-    if (existing) { existing.items.push(s); existing.totalMins += s.durationMins; }
+    const g = groups.find(x => x.dateKey === key);
+    if (g) { g.items.push(s); g.totalMins += s.durationMins; }
     else groups.push({ dateKey: key, heading: formatDateHeading(s.completedAt), items: [s], totalMins: s.durationMins });
   }
 
   return (
     <div className="w-full max-w-lg mx-auto">
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="flex items-center justify-between w-full px-4 py-3 rounded-xl hover:bg-surface-elevated transition-colors"
-      >
+      <button onClick={() => setOpen(o => !o)} className="flex items-center justify-between w-full px-4 py-3 rounded-xl hover:bg-surface-elevated transition-colors">
         <span className="text-sm font-semibold text-text-secondary uppercase tracking-wider">Session Log</span>
         {open ? <ChevronUp className="w-4 h-4 text-text-muted" /> : <ChevronDown className="w-4 h-4 text-text-muted" />}
       </button>
-
       {open && (
         <div className="space-y-4 pb-8">
           {groups.map(group => (
@@ -218,11 +274,7 @@ function SessionLog({ sessions, onDelete }: { sessions: Session[]; onDelete: (id
                     <p className="text-sm font-medium text-text-primary truncate">{s.label}</p>
                     <p className="text-xs text-text-muted">{formatSessionTime(s.completedAt)} · {s.durationMins} min</p>
                   </div>
-                  <button
-                    onClick={() => onDelete(s.id)}
-                    className="p-1.5 rounded-lg text-text-muted hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
-                    title="Delete session"
-                  >
+                  <button onClick={() => onDelete(s.id)} className="p-1.5 rounded-lg text-text-muted hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -240,25 +292,95 @@ function SessionLog({ sessions, onDelete }: { sessions: Session[]; onDelete: (id
 export default function CoffeeTimer() {
   const queryClient = useQueryClient();
 
-  const [phase, setPhase] = useState<Phase>('idle');
-  const [timeLeft, setTimeLeft] = useState(WORK_DURATION);
-  const [isRunning, setIsRunning] = useState(false);
-  const [totalWorkSecs, setTotalWorkSecs] = useState(0);
-  const [currentTask, setCurrentTask] = useState('');
+  // Initialise from localStorage so state survives navigation and tab switches
+  const [timerState, setTimerState] = useState<TimerState>(() => {
+    const saved = loadTimerState();
+    if (!saved.isRunning || saved.endTime === null) return saved;
+    // Fast-forward through any phase transitions that happened while away
+    const { state } = fastForward(saved, Date.now());
+    return state;
+  });
+
+  // Displayed time left — derived from endTime on each tick
+  const [displayedTimeLeft, setDisplayedTimeLeft] = useState<number>(() => {
+    const s = timerState;
+    if (!s.isRunning || s.endTime === null) return s.pausedTimeLeft;
+    return Math.max(0, Math.floor((s.endTime - Date.now()) / 1000));
+  });
+
   const [showLabelModal, setShowLabelModal] = useState(false);
   const [pendingLabel, setPendingLabel] = useState('');
 
-  // Fetch sessions from backend
-  const { data } = useQuery<{ sessions: Session[] }>({
-    queryKey: ['coffee-sessions'],
-    queryFn: async () => {
-      const res = await apiClient.get('/coffee');
-      return res.data;
-    },
-  });
+  // Background-session debt: if sessions completed while navigated away, auto-save them
+  const bgSessionsRef = useRef(0);
+  useEffect(() => {
+    const saved = loadTimerState();
+    if (!saved.isRunning || saved.endTime === null) return;
+    const { backgroundSessions } = fastForward(saved, Date.now());
+    bgSessionsRef.current = backgroundSessions;
+  }, []); // run once on mount
 
-  const sessions = data?.sessions ?? [];
+  // Persist timer state to localStorage whenever it changes
+  useEffect(() => {
+    saveTimerState(timerState);
+  }, [timerState]);
 
+  // Tick — uses absolute endTime so it's accurate even after tab throttling
+  useEffect(() => {
+    if (!timerState.isRunning || timerState.endTime === null) return;
+
+    const tick = () => {
+      const now = Date.now();
+      const left = Math.max(0, Math.floor((timerState.endTime! - now) / 1000));
+      setDisplayedTimeLeft(left);
+    };
+
+    tick(); // immediate first tick
+    const id = setInterval(tick, 500);
+    return () => clearInterval(id);
+  }, [timerState.isRunning, timerState.endTime]);
+
+  // Phase transition when displayedTimeLeft hits 0
+  const transitioningRef = useRef(false);
+  useEffect(() => {
+    if (displayedTimeLeft > 0 || !timerState.isRunning || transitioningRef.current) return;
+    transitioningRef.current = true;
+
+    if (timerState.phase === 'working') {
+      playChime();
+      const workSecs = timerState.workStartTime
+        ? timerState.totalWorkSecs + Math.floor((Date.now() - timerState.workStartTime) / 1000)
+        : timerState.totalWorkSecs;
+      const breakEndTime = Date.now() + BREAK_DURATION * 1000;
+
+      setTimerState(prev => ({
+        ...prev,
+        phase: 'break',
+        endTime: breakEndTime,
+        pausedTimeLeft: BREAK_DURATION,
+        workStartTime: null,
+        totalWorkSecs: workSecs,
+      }));
+      setDisplayedTimeLeft(BREAK_DURATION);
+      setPendingLabel(timerState.currentTask);
+      setShowLabelModal(true);
+    } else if (timerState.phase === 'break') {
+      playChime();
+      const workEndTime = Date.now() + WORK_DURATION * 1000;
+      setTimerState(prev => ({
+        ...prev,
+        phase: 'working',
+        endTime: workEndTime,
+        pausedTimeLeft: WORK_DURATION,
+        workStartTime: Date.now(),
+      }));
+      setDisplayedTimeLeft(WORK_DURATION);
+    }
+
+    setTimeout(() => { transitioningRef.current = false; }, 1000);
+  }, [displayedTimeLeft, timerState]);
+
+  // Auto-save any sessions that completed in the background
   const createSession = useMutation({
     mutationFn: async (payload: { label: string; durationMins: number }) => {
       const res = await apiClient.post('/coffee', payload);
@@ -267,50 +389,39 @@ export default function CoffeeTimer() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['coffee-sessions'] }),
   });
 
+  useEffect(() => {
+    if (bgSessionsRef.current > 0) {
+      const count = bgSessionsRef.current;
+      bgSessionsRef.current = 0;
+      for (let i = 0; i < count; i++) {
+        createSession.mutate({ label: timerState.currentTask || 'Work session', durationMins: 30 });
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const { data } = useQuery<{ sessions: Session[] }>({
+    queryKey: ['coffee-sessions'],
+    queryFn: async () => (await apiClient.get('/coffee')).data,
+  });
+
   const deleteSession = useMutation({
-    mutationFn: async (id: string) => {
-      await apiClient.delete(`/coffee/${id}`);
-    },
+    mutationFn: async (id: string) => { await apiClient.delete(`/coffee/${id}`); },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['coffee-sessions'] }),
   });
 
+  const sessions = data?.sessions ?? [];
   const todaySessions = sessions.filter(s => isoDateKey(s.completedAt) === new Date().toDateString());
   const todayMins = todaySessions.reduce((sum, s) => sum + s.durationMins, 0);
 
+  // Live work time = base + time since workStartTime
+  const liveWorkSecs = timerState.isRunning && timerState.workStartTime
+    ? timerState.totalWorkSecs + Math.floor((Date.now() - timerState.workStartTime) / 1000)
+    : timerState.totalWorkSecs;
+
   const fillPercent =
-    phase === 'working' ? (timeLeft / WORK_DURATION) * 100
-    : phase === 'break' ? 0
+    timerState.phase === 'working' ? (displayedTimeLeft / WORK_DURATION) * 100
+    : timerState.phase === 'break' ? 0
     : 100;
-
-  // Countdown
-  useEffect(() => {
-    if (!isRunning) return;
-    const id = setInterval(() => setTimeLeft(prev => Math.max(0, prev - 1)), 1000);
-    return () => clearInterval(id);
-  }, [isRunning]);
-
-  // Work time accumulator
-  useEffect(() => {
-    if (!isRunning || phase !== 'working') return;
-    const id = setInterval(() => setTotalWorkSecs(prev => prev + 1), 1000);
-    return () => clearInterval(id);
-  }, [isRunning, phase]);
-
-  // Phase transitions
-  useEffect(() => {
-    if (timeLeft > 0 || !isRunning) return;
-    if (phase === 'working') {
-      playChime();
-      setPendingLabel(currentTask);
-      setShowLabelModal(true);
-      setPhase('break');
-      setTimeLeft(BREAK_DURATION);
-    } else if (phase === 'break') {
-      playChime();
-      setPhase('working');
-      setTimeLeft(WORK_DURATION);
-    }
-  }, [timeLeft, phase, isRunning, currentTask]);
 
   const commitSession = (label: string) => {
     createSession.mutate({ label: label || 'Work session', durationMins: 30 });
@@ -318,50 +429,70 @@ export default function CoffeeTimer() {
   };
 
   const handleStartPause = () => {
-    if (phase === 'idle') setPhase('working');
-    setIsRunning(prev => !prev);
+    const now = Date.now();
+    if (!timerState.isRunning) {
+      // Start or resume
+      const newEndTime = now + timerState.pausedTimeLeft * 1000;
+      setTimerState(prev => ({
+        ...prev,
+        phase: prev.phase === 'idle' ? 'working' : prev.phase,
+        isRunning: true,
+        endTime: newEndTime,
+        workStartTime: (prev.phase === 'idle' || prev.phase === 'working') ? now : null,
+      }));
+    } else {
+      // Pause — snapshot the current timeLeft
+      const currentLeft = timerState.endTime
+        ? Math.max(0, Math.floor((timerState.endTime - now) / 1000))
+        : timerState.pausedTimeLeft;
+      const workSecs = timerState.workStartTime && timerState.phase === 'working'
+        ? timerState.totalWorkSecs + Math.floor((now - timerState.workStartTime) / 1000)
+        : timerState.totalWorkSecs;
+      setTimerState(prev => ({
+        ...prev,
+        isRunning: false,
+        endTime: null,
+        pausedTimeLeft: currentLeft,
+        workStartTime: null,
+        totalWorkSecs: workSecs,
+      }));
+      setDisplayedTimeLeft(currentLeft);
+    }
   };
 
   const handleReset = () => {
-    setIsRunning(false);
-    setPhase('idle');
-    setTimeLeft(WORK_DURATION);
-    setTotalWorkSecs(0);
-    setCurrentTask('');
+    setTimerState({ ...DEFAULT_STATE });
+    setDisplayedTimeLeft(WORK_DURATION);
     setShowLabelModal(false);
   };
+
+  const { phase, isRunning, currentTask } = timerState;
 
   const phaseColors =
     phase === 'break' ? 'bg-success/20 text-success-dark border border-success/30'
     : phase === 'working' ? 'bg-primary/20 text-primary-dark border border-primary/30'
     : 'bg-surface-elevated text-text-secondary border border-border';
 
-  const phaseLabel =
-    phase === 'idle' ? 'Ready to work'
-    : phase === 'working' ? '☕ Working'
-    : '🌿 Break time!';
+  const phaseLabel = phase === 'idle' ? 'Ready to work' : phase === 'working' ? '☕ Working' : '🌿 Break time!';
 
   return (
     <div className="h-full flex flex-col page-enter overflow-auto">
-      {/* Header */}
       <div className="px-6 pt-6 pb-4 flex-shrink-0">
         <h1 className="text-2xl font-bold text-text-primary">Coffee Timer</h1>
         <p className="text-text-secondary text-sm mt-0.5">Work 30 min, break 5 min — your cup drains as you go</p>
       </div>
 
-      {/* Timer area */}
       <div className="flex flex-col items-center gap-5 px-6 pb-4">
         <div className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-300 ${phaseColors}`}>
           {phaseLabel}
         </div>
 
-        {/* Task input */}
         {phase !== 'break' && (
           <div className="w-full max-w-sm">
             <input
               className="input-field text-center text-sm"
               value={currentTask}
-              onChange={e => setCurrentTask(e.target.value)}
+              onChange={e => setTimerState(prev => ({ ...prev, currentTask: e.target.value }))}
               placeholder={phase === 'idle' ? 'What will you work on? (optional)' : 'What are you working on?'}
               disabled={phase === 'working' && isRunning}
             />
@@ -373,31 +504,27 @@ export default function CoffeeTimer() {
 
         <CoffeeCup fillPercent={fillPercent} phase={phase} isRunning={isRunning} />
 
-        {/* Timer */}
         <div className="text-center -mt-2">
           <div className="text-6xl font-bold font-mono text-text-primary tracking-tight tabular-nums">
-            {formatTime(timeLeft)}
+            {formatTime(displayedTimeLeft)}
           </div>
           <p className="text-text-muted text-sm mt-1">
             {phase === 'working' ? 'until break' : phase === 'break' ? 'break remaining' : 'ready to start'}
           </p>
         </div>
 
-        {/* Progress bar */}
         <div className="w-64 h-2 bg-border rounded-full overflow-hidden">
           <div
             className={`h-full rounded-full transition-all duration-1000 ease-linear ${phase === 'break' ? 'bg-success' : 'bg-primary'}`}
             style={{
               width: `${
-                phase === 'working' ? (timeLeft / WORK_DURATION) * 100
-                : phase === 'break' ? ((BREAK_DURATION - timeLeft) / BREAK_DURATION) * 100
-                : 100
-              }%`,
+                phase === 'working' ? (displayedTimeLeft / WORK_DURATION) * 100
+                : phase === 'break' ? ((BREAK_DURATION - displayedTimeLeft) / BREAK_DURATION) * 100
+                : 100}%`,
             }}
           />
         </div>
 
-        {/* Controls */}
         <div className="flex items-center gap-3">
           <button onClick={handleReset} className="btn-secondary" disabled={phase === 'idle'}>
             <RotateCcw className="w-4 h-4" />Reset
@@ -408,7 +535,6 @@ export default function CoffeeTimer() {
           </button>
         </div>
 
-        {/* Stats */}
         <div className="flex gap-4">
           <div className="card px-5 py-3 text-center min-w-[90px]">
             <div className="text-2xl font-bold text-primary">{todaySessions.length}</div>
@@ -420,7 +546,7 @@ export default function CoffeeTimer() {
           </div>
           <div className="card px-5 py-3 text-center min-w-[90px]">
             <div className="text-2xl font-bold text-primary">
-              {totalWorkSecs < 60 ? `${totalWorkSecs}s` : formatWorkTotal(totalWorkSecs)}
+              {liveWorkSecs < 60 ? `${liveWorkSecs}s` : formatWorkTotal(liveWorkSecs)}
             </div>
             <div className="text-xs text-text-muted mt-0.5">This session</div>
           </div>
@@ -429,7 +555,6 @@ export default function CoffeeTimer() {
 
       <div className="border-t border-border mx-6 my-2" />
 
-      {/* Session log */}
       <div className="px-6 pb-2">
         <SessionLog sessions={sessions} onDelete={id => deleteSession.mutate(id)} />
       </div>
