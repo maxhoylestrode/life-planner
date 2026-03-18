@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import Notes from './pages/Notes';
 import Calendar from './pages/Calendar';
 import Todos from './pages/Todos';
+import CoffeeTimer from './pages/CoffeeTimer';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -74,6 +75,7 @@ function AppRoutes() {
         <Route path="notes" element={<Notes />} />
         <Route path="calendar" element={<Calendar />} />
         <Route path="todos" element={<Todos />} />
+        <Route path="coffee" element={<CoffeeTimer />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

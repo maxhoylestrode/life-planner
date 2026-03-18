@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FileText, Calendar, CheckSquare, LogOut, Sparkles, X } from 'lucide-react';
+import { FileText, Calendar, CheckSquare, LogOut, Sparkles, X, Coffee } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 interface SidebarProps {
@@ -10,6 +10,7 @@ const navItems = [
   { to: '/notes', icon: FileText, label: 'Notes', emoji: '📝' },
   { to: '/calendar', icon: Calendar, label: 'Calendar', emoji: '📅' },
   { to: '/todos', icon: CheckSquare, label: 'To Do', emoji: '✅' },
+  { to: '/coffee', icon: Coffee, label: 'Coffee Timer', emoji: '☕' },
 ];
 
 export default function Sidebar({ onClose }: SidebarProps) {
