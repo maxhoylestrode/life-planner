@@ -8,15 +8,27 @@ datasource db {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  email        String     @unique
-  username     String     @unique
-  passwordHash String
-  createdAt    DateTime   @default(now())
-  notes        Note[]
-  events       Event[]
-  todos        Todo[]
-  todoLists    TodoList[]
+  id             String          @id @default(cuid())
+  email          String          @unique
+  username       String          @unique
+  passwordHash   String
+  createdAt      DateTime        @default(now())
+  notes          Note[]
+  events         Event[]
+  todos          Todo[]
+  todoLists      TodoList[]
+  coffeeSessions CoffeeSession[]
+}
+
+model CoffeeSession {
+  id           String   @id @default(cuid())
+  label        String
+  completedAt  DateTime @default(now())
+  durationMins Int      @default(30)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, completedAt])
 }
 
 model Note {

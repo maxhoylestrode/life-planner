@@ -5,6 +5,7 @@ import authRoutes from './routes/auth';
 import notesRoutes from './routes/notes';
 import calendarRoutes from './routes/calendar';
 import todosRoutes from './routes/todos';
+import coffeeRoutes from './routes/coffee';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -28,6 +29,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/todos', todosRoutes);
+app.use('/api/coffee', coffeeRoutes);
 
 // 404 handler
 app.use((_req, res) => {

@@ -1,16 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Play, Pause, RotateCcw, ChevronDown, ChevronUp, Trash2, Check } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import apiClient from '../api/client';
 
 const WORK_DURATION = 30 * 60;
 const BREAK_DURATION = 5 * 60;
-const STORAGE_KEY = 'coffee-timer-sessions';
 
 type Phase = 'idle' | 'working' | 'break';
 
 interface Session {
   id: string;
   label: string;
-  completedAt: string; // ISO string
+  completedAt: string;
   durationMins: number;
 }
 
@@ -20,11 +21,14 @@ function formatTime(seconds: number) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+function formatMins(totalMins: number) {
+  if (totalMins >= 60) return `${Math.floor(totalMins / 60)}h ${totalMins % 60}m`;
+  return `${totalMins}m`;
+}
+
 function formatWorkTotal(totalSecs: number) {
   const totalMins = Math.floor(totalSecs / 60);
-  const hours = Math.floor(totalMins / 60);
-  const mins = totalMins % 60;
-  if (hours > 0) return `${hours}h ${mins}m`;
+  if (totalMins >= 60) return `${Math.floor(totalMins / 60)}h ${totalMins % 60}m`;
   return `${totalMins}m`;
 }
 
@@ -69,34 +73,16 @@ function playChime() {
   }
 }
 
-function loadSessions(): Session[] {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  } catch {
-    return [];
-  }
-}
+// ─── Coffee Cup SVG ───────────────────────────────────────────────────────────
 
-function saveSessions(sessions: Session[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
-}
-
-// ─── Coffee Cup SVG ──────────────────────────────────────────────────────────
-
-interface CoffeeCupProps {
-  fillPercent: number;
-  phase: Phase;
-  isRunning: boolean;
-}
-
-function CoffeeCup({ fillPercent, phase, isRunning }: CoffeeCupProps) {
-  const cupTopY = 55;
-  const cupBottomY = 170;
-  const cupLeftX = 25;
-  const cupRightX = 155;
+function CoffeeCup({ fillPercent, phase, isRunning }: { fillPercent: number; phase: Phase; isRunning: boolean }) {
+  const cupTopY = 55, cupBottomY = 170, cupLeftX = 25, cupRightX = 155;
   const innerHeight = cupBottomY - cupTopY;
   const liquidHeight = (fillPercent / 100) * innerHeight;
   const liquidY = cupBottomY - liquidHeight;
+  const isBreak = phase === 'break';
+  const liquidColor = isBreak ? '#6BAF7A' : '#6F4E37';
+  const foamColor = isBreak ? '#A8D5B0' : '#C9956C';
 
   const cupPath = `
     M ${cupLeftX} ${cupTopY}
@@ -104,20 +90,13 @@ function CoffeeCup({ fillPercent, phase, isRunning }: CoffeeCupProps) {
     Q ${cupLeftX + 4} ${cupBottomY} ${cupLeftX + 14} ${cupBottomY}
     L ${cupRightX - 14} ${cupBottomY}
     Q ${cupRightX - 4} ${cupBottomY} ${cupRightX - 4} ${cupBottomY - 10}
-    L ${cupRightX} ${cupTopY}
-    Z
+    L ${cupRightX} ${cupTopY} Z
   `;
-
-  const isBreak = phase === 'break';
-  const liquidColor = isBreak ? '#6BAF7A' : '#6F4E37';
-  const foamColor = isBreak ? '#A8D5B0' : '#C9956C';
 
   return (
     <svg viewBox="0 0 200 210" className="w-52 h-52" fill="none">
       <defs>
-        <clipPath id="cupBodyClip">
-          <path d={cupPath} />
-        </clipPath>
+        <clipPath id="cupBodyClip"><path d={cupPath} /></clipPath>
         <linearGradient id="liquidGrad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={liquidColor} stopOpacity="0.85" />
           <stop offset="100%" stopColor={liquidColor} stopOpacity="1" />
@@ -166,27 +145,11 @@ function CoffeeCup({ fillPercent, phase, isRunning }: CoffeeCupProps) {
   );
 }
 
-// ─── Label Modal ─────────────────────────────────────────────────────────────
+// ─── Label Modal ──────────────────────────────────────────────────────────────
 
-interface LabelModalProps {
-  defaultLabel: string;
-  onSave: (label: string) => void;
-  onSkip: () => void;
-}
-
-function LabelModal({ defaultLabel, onSave, onSkip }: LabelModalProps) {
+function LabelModal({ defaultLabel, onSave, onSkip }: { defaultLabel: string; onSave: (label: string) => void; onSkip: () => void }) {
   const [label, setLabel] = useState(defaultLabel);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, []);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(label.trim() || 'Work session');
-  };
+  const inputRef = (el: HTMLInputElement | null) => { if (el) { el.focus(); el.select(); } };
 
   return (
     <div className="modal-overlay" onClick={onSkip}>
@@ -194,7 +157,7 @@ function LabelModal({ defaultLabel, onSave, onSkip }: LabelModalProps) {
         <div className="text-2xl mb-1">☕</div>
         <h2 className="text-lg font-bold text-text-primary mb-1">Session complete!</h2>
         <p className="text-sm text-text-secondary mb-4">What were you working on?</p>
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={e => { e.preventDefault(); onSave(label.trim() || 'Work session'); }} className="space-y-3">
           <input
             ref={inputRef}
             className="input-field"
@@ -203,12 +166,9 @@ function LabelModal({ defaultLabel, onSave, onSkip }: LabelModalProps) {
             placeholder="e.g. Feature planning, Client emails…"
           />
           <div className="flex gap-2 pt-1">
-            <button type="button" onClick={onSkip} className="btn-secondary flex-1">
-              Skip
-            </button>
+            <button type="button" onClick={onSkip} className="btn-secondary flex-1">Skip</button>
             <button type="submit" className="btn-primary flex-1">
-              <Check className="w-4 h-4" />
-              Save
+              <Check className="w-4 h-4" />Save
             </button>
           </div>
         </form>
@@ -219,27 +179,16 @@ function LabelModal({ defaultLabel, onSave, onSkip }: LabelModalProps) {
 
 // ─── Session Log ──────────────────────────────────────────────────────────────
 
-interface SessionLogProps {
-  sessions: Session[];
-  onDelete: (id: string) => void;
-}
-
-function SessionLog({ sessions, onDelete }: SessionLogProps) {
+function SessionLog({ sessions, onDelete }: { sessions: Session[]; onDelete: (id: string) => void }) {
   const [open, setOpen] = useState(true);
-
   if (sessions.length === 0) return null;
 
-  // Group by date
   const groups: { dateKey: string; heading: string; items: Session[]; totalMins: number }[] = [];
-  for (const s of [...sessions].reverse()) {
+  for (const s of [...sessions]) {
     const key = isoDateKey(s.completedAt);
     const existing = groups.find(g => g.dateKey === key);
-    if (existing) {
-      existing.items.push(s);
-      existing.totalMins += s.durationMins;
-    } else {
-      groups.push({ dateKey: key, heading: formatDateHeading(s.completedAt), items: [s], totalMins: s.durationMins });
-    }
+    if (existing) { existing.items.push(s); existing.totalMins += s.durationMins; }
+    else groups.push({ dateKey: key, heading: formatDateHeading(s.completedAt), items: [s], totalMins: s.durationMins });
   }
 
   return (
@@ -248,9 +197,7 @@ function SessionLog({ sessions, onDelete }: SessionLogProps) {
         onClick={() => setOpen(o => !o)}
         className="flex items-center justify-between w-full px-4 py-3 rounded-xl hover:bg-surface-elevated transition-colors"
       >
-        <span className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
-          Session Log
-        </span>
+        <span className="text-sm font-semibold text-text-secondary uppercase tracking-wider">Session Log</span>
         {open ? <ChevronUp className="w-4 h-4 text-text-muted" /> : <ChevronDown className="w-4 h-4 text-text-muted" />}
       </button>
 
@@ -258,29 +205,18 @@ function SessionLog({ sessions, onDelete }: SessionLogProps) {
         <div className="space-y-4 pb-8">
           {groups.map(group => (
             <div key={group.dateKey} className="card overflow-hidden">
-              {/* Date header */}
               <div className="flex items-center justify-between px-4 py-2.5 bg-surface-elevated border-b border-border">
                 <span className="text-sm font-semibold text-text-primary">{group.heading}</span>
                 <span className="text-xs text-text-muted font-medium">
-                  {group.totalMins >= 60
-                    ? `${Math.floor(group.totalMins / 60)}h ${group.totalMins % 60}m`
-                    : `${group.totalMins}m`}{' '}
-                  · {group.items.length} session{group.items.length !== 1 ? 's' : ''}
+                  {formatMins(group.totalMins)} · {group.items.length} session{group.items.length !== 1 ? 's' : ''}
                 </span>
               </div>
-
-              {/* Session rows */}
               {group.items.map((s, idx) => (
-                <div
-                  key={s.id}
-                  className={`flex items-center gap-3 px-4 py-3 ${idx < group.items.length - 1 ? 'border-b border-border' : ''}`}
-                >
+                <div key={s.id} className={`flex items-center gap-3 px-4 py-3 ${idx < group.items.length - 1 ? 'border-b border-border' : ''}`}>
                   <span className="text-lg flex-shrink-0">☕</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-text-primary truncate">{s.label}</p>
-                    <p className="text-xs text-text-muted">
-                      {formatSessionTime(s.completedAt)} · {s.durationMins} min
-                    </p>
+                    <p className="text-xs text-text-muted">{formatSessionTime(s.completedAt)} · {s.durationMins} min</p>
                   </div>
                   <button
                     onClick={() => onDelete(s.id)}
@@ -302,30 +238,51 @@ function SessionLog({ sessions, onDelete }: SessionLogProps) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CoffeeTimer() {
+  const queryClient = useQueryClient();
+
   const [phase, setPhase] = useState<Phase>('idle');
   const [timeLeft, setTimeLeft] = useState(WORK_DURATION);
   const [isRunning, setIsRunning] = useState(false);
   const [totalWorkSecs, setTotalWorkSecs] = useState(0);
-
   const [currentTask, setCurrentTask] = useState('');
   const [showLabelModal, setShowLabelModal] = useState(false);
   const [pendingLabel, setPendingLabel] = useState('');
 
-  const [sessionLog, setSessionLog] = useState<Session[]>(loadSessions);
+  // Fetch sessions from backend
+  const { data } = useQuery<{ sessions: Session[] }>({
+    queryKey: ['coffee-sessions'],
+    queryFn: async () => {
+      const res = await apiClient.get('/coffee');
+      return res.data;
+    },
+  });
 
-  const todaySessions = sessionLog.filter(
-    s => isoDateKey(s.completedAt) === new Date().toDateString()
-  );
+  const sessions = data?.sessions ?? [];
+
+  const createSession = useMutation({
+    mutationFn: async (payload: { label: string; durationMins: number }) => {
+      const res = await apiClient.post('/coffee', payload);
+      return res.data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['coffee-sessions'] }),
+  });
+
+  const deleteSession = useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/coffee/${id}`);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['coffee-sessions'] }),
+  });
+
+  const todaySessions = sessions.filter(s => isoDateKey(s.completedAt) === new Date().toDateString());
   const todayMins = todaySessions.reduce((sum, s) => sum + s.durationMins, 0);
 
   const fillPercent =
-    phase === 'working'
-      ? (timeLeft / WORK_DURATION) * 100
-      : phase === 'break'
-      ? 0
-      : 100;
+    phase === 'working' ? (timeLeft / WORK_DURATION) * 100
+    : phase === 'break' ? 0
+    : 100;
 
-  // Countdown tick
+  // Countdown
   useEffect(() => {
     if (!isRunning) return;
     const id = setInterval(() => setTimeLeft(prev => Math.max(0, prev - 1)), 1000);
@@ -356,30 +313,8 @@ export default function CoffeeTimer() {
   }, [timeLeft, phase, isRunning, currentTask]);
 
   const commitSession = (label: string) => {
-    const session: Session = {
-      id: crypto.randomUUID(),
-      label: label || 'Work session',
-      completedAt: new Date().toISOString(),
-      durationMins: 30,
-    };
-    setSessionLog(prev => {
-      const updated = [...prev, session];
-      saveSessions(updated);
-      return updated;
-    });
+    createSession.mutate({ label: label || 'Work session', durationMins: 30 });
     setShowLabelModal(false);
-  };
-
-  const handleSkipLabel = () => {
-    commitSession('Work session');
-  };
-
-  const handleDeleteSession = (id: string) => {
-    setSessionLog(prev => {
-      const updated = prev.filter(s => s.id !== id);
-      saveSessions(updated);
-      return updated;
-    });
   };
 
   const handleStartPause = () => {
@@ -396,34 +331,31 @@ export default function CoffeeTimer() {
     setShowLabelModal(false);
   };
 
-  const phaseLabel =
-    phase === 'idle' ? 'Ready to work' : phase === 'working' ? '☕ Working' : '🌿 Break time!';
-
   const phaseColors =
-    phase === 'break'
-      ? 'bg-success/20 text-success-dark border border-success/30'
-      : phase === 'working'
-      ? 'bg-primary/20 text-primary-dark border border-primary/30'
-      : 'bg-surface-elevated text-text-secondary border border-border';
+    phase === 'break' ? 'bg-success/20 text-success-dark border border-success/30'
+    : phase === 'working' ? 'bg-primary/20 text-primary-dark border border-primary/30'
+    : 'bg-surface-elevated text-text-secondary border border-border';
+
+  const phaseLabel =
+    phase === 'idle' ? 'Ready to work'
+    : phase === 'working' ? '☕ Working'
+    : '🌿 Break time!';
 
   return (
     <div className="h-full flex flex-col page-enter overflow-auto">
       {/* Header */}
       <div className="px-6 pt-6 pb-4 flex-shrink-0">
         <h1 className="text-2xl font-bold text-text-primary">Coffee Timer</h1>
-        <p className="text-text-secondary text-sm mt-0.5">
-          Work 30 min, break 5 min — your cup drains as you go
-        </p>
+        <p className="text-text-secondary text-sm mt-0.5">Work 30 min, break 5 min — your cup drains as you go</p>
       </div>
 
       {/* Timer area */}
       <div className="flex flex-col items-center gap-5 px-6 pb-4">
-        {/* Phase badge */}
         <div className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-all duration-300 ${phaseColors}`}>
           {phaseLabel}
         </div>
 
-        {/* Task input — shown when idle or working */}
+        {/* Task input */}
         {phase !== 'break' && (
           <div className="w-full max-w-sm">
             <input
@@ -435,13 +367,10 @@ export default function CoffeeTimer() {
             />
           </div>
         )}
-
-        {/* Current task label during a running session */}
         {phase === 'working' && isRunning && currentTask && (
           <p className="text-sm text-text-secondary italic -mt-2">"{currentTask}"</p>
         )}
 
-        {/* Coffee cup */}
         <CoffeeCup fillPercent={fillPercent} phase={phase} isRunning={isRunning} />
 
         {/* Timer */}
@@ -460,11 +389,9 @@ export default function CoffeeTimer() {
             className={`h-full rounded-full transition-all duration-1000 ease-linear ${phase === 'break' ? 'bg-success' : 'bg-primary'}`}
             style={{
               width: `${
-                phase === 'working'
-                  ? (timeLeft / WORK_DURATION) * 100
-                  : phase === 'break'
-                  ? ((BREAK_DURATION - timeLeft) / BREAK_DURATION) * 100
-                  : 100
+                phase === 'working' ? (timeLeft / WORK_DURATION) * 100
+                : phase === 'break' ? ((BREAK_DURATION - timeLeft) / BREAK_DURATION) * 100
+                : 100
               }%`,
             }}
           />
@@ -473,8 +400,7 @@ export default function CoffeeTimer() {
         {/* Controls */}
         <div className="flex items-center gap-3">
           <button onClick={handleReset} className="btn-secondary" disabled={phase === 'idle'}>
-            <RotateCcw className="w-4 h-4" />
-            Reset
+            <RotateCcw className="w-4 h-4" />Reset
           </button>
           <button onClick={handleStartPause} className="btn-primary px-8 py-3 text-base">
             {isRunning ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
@@ -489,9 +415,7 @@ export default function CoffeeTimer() {
             <div className="text-xs text-text-muted mt-0.5">Today</div>
           </div>
           <div className="card px-5 py-3 text-center min-w-[90px]">
-            <div className="text-2xl font-bold text-primary">
-              {todayMins >= 60 ? `${Math.floor(todayMins / 60)}h ${todayMins % 60}m` : `${todayMins}m`}
-            </div>
+            <div className="text-2xl font-bold text-primary">{formatMins(todayMins)}</div>
             <div className="text-xs text-text-muted mt-0.5">Today's work</div>
           </div>
           <div className="card px-5 py-3 text-center min-w-[90px]">
@@ -503,20 +427,18 @@ export default function CoffeeTimer() {
         </div>
       </div>
 
-      {/* Divider */}
       <div className="border-t border-border mx-6 my-2" />
 
       {/* Session log */}
       <div className="px-6 pb-2">
-        <SessionLog sessions={sessionLog} onDelete={handleDeleteSession} />
+        <SessionLog sessions={sessions} onDelete={id => deleteSession.mutate(id)} />
       </div>
 
-      {/* Label modal */}
       {showLabelModal && (
         <LabelModal
           defaultLabel={pendingLabel}
           onSave={commitSession}
-          onSkip={handleSkipLabel}
+          onSkip={() => commitSession('Work session')}
         />
       )}
     </div>
