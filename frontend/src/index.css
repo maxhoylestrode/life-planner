@@ -1,0 +1,235 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-background: #FFF8F0;
+    --color-primary: #E8825A;
+    --color-primary-dark: #C4614A;
+    --color-secondary: #F5A623;
+    --color-surface: #FFFFFF;
+    --color-surface-elevated: #FFF3E8;
+    --color-text-primary: #3D2B1F;
+    --color-text-secondary: #8B6355;
+    --color-border: #E8D5C4;
+    --color-success: #6BAF7A;
+    --color-accent: #9B7FA6;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--color-text-primary);
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #E8D5C4;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #C4A090;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white font-medium px-4 py-2 rounded-xl hover:bg-primary-dark active:scale-95 transition-all duration-150 flex items-center gap-2 shadow-warm;
+  }
+
+  .btn-secondary {
+    @apply bg-surface-elevated text-text-primary font-medium px-4 py-2 rounded-xl hover:bg-border active:scale-95 transition-all duration-150 flex items-center gap-2;
+  }
+
+  .btn-ghost {
+    @apply text-text-secondary hover:text-text-primary hover:bg-surface-elevated px-3 py-2 rounded-xl transition-all duration-150 flex items-center gap-2;
+  }
+
+  .btn-danger {
+    @apply bg-red-50 text-red-600 font-medium px-4 py-2 rounded-xl hover:bg-red-100 active:scale-95 transition-all duration-150 flex items-center gap-2;
+  }
+
+  .card {
+    @apply bg-surface rounded-2xl shadow-warm border border-border;
+  }
+
+  .card-elevated {
+    @apply bg-surface rounded-2xl shadow-warm-md border border-border;
+  }
+
+  .input-field {
+    @apply w-full bg-surface border border-border rounded-xl px-4 py-2.5 text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all duration-150;
+  }
+
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in;
+  }
+
+  .modal-content {
+    @apply bg-surface rounded-3xl shadow-warm-xl w-full max-w-md animate-scale-in;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-text-secondary font-medium transition-all duration-150 hover:bg-surface-elevated hover:text-text-primary cursor-pointer;
+  }
+
+  .nav-item-active {
+    @apply bg-primary text-white hover:bg-primary-dark hover:text-white;
+  }
+
+  .badge-high {
+    @apply text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-600;
+  }
+
+  .badge-medium {
+    @apply text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700;
+  }
+
+  .badge-low {
+    @apply text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Checkbox animation */
+.todo-checkbox {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.todo-checkbox input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.todo-checkbox .checkmark {
+  position: absolute;
+  inset: 0;
+  border: 2px solid #E8D5C4;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.todo-checkbox input:checked + .checkmark {
+  background: #E8825A;
+  border-color: #E8825A;
+}
+
+.todo-checkbox .checkmark svg {
+  width: 12px;
+  height: 12px;
+  stroke: white;
+  stroke-width: 2.5;
+  fill: none;
+  stroke-dasharray: 20;
+  stroke-dashoffset: 20;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke-dashoffset 0.25s ease;
+}
+
+.todo-checkbox input:checked + .checkmark svg {
+  stroke-dashoffset: 0;
+}
+
+.todo-checkbox:hover .checkmark {
+  border-color: #E8825A;
+  background: #FFF3E8;
+}
+
+.todo-checkbox input:checked + .checkmark:hover {
+  background: #C4614A;
+  border-color: #C4614A;
+}
+
+/* Smooth transition for todo completion */
+.todo-item {
+  transition: all 0.25s ease;
+}
+
+.todo-item.completed .todo-text {
+  text-decoration: line-through;
+  color: #B89080;
+}
+
+/* Calendar event pill */
+.event-pill {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  line-height: 1.6;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.event-pill:hover {
+  opacity: 0.85;
+}
+
+/* Page transitions */
+.page-enter {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* Mobile safe area */
+@supports (padding: max(0px)) {
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

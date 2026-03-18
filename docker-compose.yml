@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: life-planner-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-lifeplanner}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lifeplanner_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-lifeplanner}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lifeplanner}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - life-planner-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: life-planner-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-lifeplanner}:${POSTGRES_PASSWORD:-lifeplanner_secret}@postgres:5432/${POSTGRES_DB:-lifeplanner}
+      JWT_SECRET: ${JWT_SECRET:-change_this_super_secret_jwt_key_in_production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change_this_refresh_secret_in_production}
+      PORT: 3001
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+    ports:
+      - "3001:3001"
+    networks:
+      - life-planner-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: life-planner-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:3001/api}
+    ports:
+      - "5173:80"
+    networks:
+      - life-planner-net
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  life-planner-net:
+    driver: bridge

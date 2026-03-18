@@ -1,0 +1,50 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Node modules
+node_modules/
+*/node_modules/
+
+# Build output
+dist/
+build/
+*/dist/
+*/build/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
+
+# Prisma
+backend/prisma/migrations/
+# Uncomment below if you want to keep migrations tracked:
+# !backend/prisma/migrations/
+
+# Test coverage
+coverage/
+*/coverage/
+
+# PWA service worker (generated)
+frontend/public/sw.js
+frontend/public/workbox-*.js
+
+# Docker
+*.pid
