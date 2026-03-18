@@ -460,6 +460,27 @@ export default function CoffeeTimer() {
     }
   };
 
+  const handleEndSession = () => {
+    playChime();
+    const now = Date.now();
+    const workSecs = timerState.workStartTime
+      ? timerState.totalWorkSecs + Math.floor((now - timerState.workStartTime) / 1000)
+      : timerState.totalWorkSecs;
+    const breakEndTime = now + BREAK_DURATION * 1000;
+    setTimerState(prev => ({
+      ...prev,
+      phase: 'break',
+      isRunning: true,
+      endTime: breakEndTime,
+      pausedTimeLeft: BREAK_DURATION,
+      workStartTime: null,
+      totalWorkSecs: workSecs,
+    }));
+    setDisplayedTimeLeft(BREAK_DURATION);
+    setPendingLabel(timerState.currentTask);
+    setShowLabelModal(true);
+  };
+
   const handleReset = () => {
     setTimerState({ ...DEFAULT_STATE });
     setDisplayedTimeLeft(WORK_DURATION);
@@ -533,6 +554,11 @@ export default function CoffeeTimer() {
             {isRunning ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
             {isRunning ? 'Pause' : phase === 'idle' ? 'Start' : 'Resume'}
           </button>
+          {phase === 'working' && (
+            <button onClick={handleEndSession} className="btn-secondary text-primary border-primary/30">
+              <Check className="w-4 h-4" />End Session
+            </button>
+          )}
         </div>
 
         <div className="flex gap-4">
