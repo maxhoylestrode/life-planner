@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronLeft,
@@ -31,6 +31,7 @@ import WeekView from './WeekView';
 import DayView from './DayView';
 import SyncModal from './SyncModal';
 import { scheduleEventReminder } from '../../lib/notifications';
+import { useTheme } from '../../hooks/useTheme';
 
 // ---- Types ----
 
@@ -185,8 +186,19 @@ function DroppableDayCell({
 export default function CalendarView() {
   const queryClient = useQueryClient();
   const today = new Date();
+  const { preferences } = useTheme();
 
   const [viewMode, setViewMode] = useState<ViewMode>('month');
+  const hasInitViewRef = useRef(false);
+
+  // Initialise view mode from preferences (once, on first load)
+  useEffect(() => {
+    if (preferences && !hasInitViewRef.current) {
+      hasInitViewRef.current = true;
+      const pref = preferences.defaultCalendarView as ViewMode;
+      if (pref === 'week' || pref === 'day') setViewMode(pref);
+    }
+  }, [preferences]);
   const [viewDate, setViewDate] = useState(today);
   const [selectedDate, setSelectedDate] = useState<Date>(today);
 
@@ -598,7 +610,7 @@ export default function CalendarView() {
               onClick={() => openNewEvent()}
             >
               <Plus className="w-4 h-4" />
-              Add Event
+              <span className="hidden sm:inline">Add Event</span>
             </button>
           </div>
         </div>
@@ -642,7 +654,7 @@ export default function CalendarView() {
                         key={idx}
                         date={date}
                         className={`
-                          bg-surface min-h-[80px] lg:min-h-[100px] p-1.5 cursor-pointer transition-colors relative
+                          bg-surface min-h-[60px] sm:min-h-[80px] lg:min-h-[100px] p-1.5 cursor-pointer transition-colors relative
                           ${!inMonth ? 'opacity-40' : ''}
                           ${isSelected && !isToday ? 'bg-primary/5' : ''}
                           hover:bg-surface-elevated

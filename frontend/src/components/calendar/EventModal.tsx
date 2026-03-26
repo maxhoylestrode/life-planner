@@ -553,7 +553,7 @@ export default function EventModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 pb-6 pt-3 border-t border-border flex items-center justify-between">
+        <div className="px-6 pb-6 pt-3 border-t border-border flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
             {event && onDelete && (
               <button

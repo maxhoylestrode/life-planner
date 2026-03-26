@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FileText, Calendar, CheckSquare, LogOut, Sparkles, X, Coffee } from 'lucide-react';
+import { FileText, Calendar, CheckSquare, LogOut, Sparkles, X, Coffee, Settings } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 interface SidebarProps {
@@ -7,10 +7,10 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { to: '/notes', icon: FileText, label: 'Notes', emoji: '📝' },
-  { to: '/calendar', icon: Calendar, label: 'Calendar', emoji: '📅' },
-  { to: '/todos', icon: CheckSquare, label: 'To Do', emoji: '✅' },
-  { to: '/coffee', icon: Coffee, label: 'Coffee Timer', emoji: '☕' },
+  { to: '/notes', icon: FileText, label: 'Notes' },
+  { to: '/calendar', icon: Calendar, label: 'Calendar' },
+  { to: '/todos', icon: CheckSquare, label: 'To Do' },
+  { to: '/coffee', icon: Coffee, label: 'Coffee Timer' },
 ];
 
 export default function Sidebar({ onClose }: SidebarProps) {
@@ -85,8 +85,16 @@ export default function Sidebar({ onClose }: SidebarProps) {
         ))}
       </nav>
 
-      {/* Logout */}
-      <div className="px-3 py-4 border-t border-border">
+      {/* Settings + Logout */}
+      <div className="px-3 py-4 border-t border-border space-y-1">
+        <NavLink
+          to="/settings"
+          onClick={onClose}
+          className={({ isActive }) => `nav-item ${isActive ? 'nav-item-active' : ''}`}
+        >
+          <Settings className="w-5 h-5 flex-shrink-0" />
+          <span>Settings</span>
+        </NavLink>
         <button
           onClick={handleLogout}
           className="nav-item w-full text-red-500 hover:bg-red-50 hover:text-red-600"

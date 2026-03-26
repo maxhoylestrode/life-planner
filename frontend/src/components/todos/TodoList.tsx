@@ -140,89 +140,124 @@ export default function TodoList() {
   return (
     <div className="flex flex-col lg:flex-row lg:h-full gap-0">
       {/* Lists sidebar */}
-      <div className="w-full lg:w-56 xl:w-64 flex-shrink-0 border-b lg:border-b-0 lg:border-r border-border bg-surface p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-            Lists
-          </h3>
-          <button
-            className="p-1 rounded-lg hover:bg-surface-elevated text-text-secondary hover:text-primary transition-colors"
-            onClick={() => setShowNewListInput((v) => !v)}
-            title="New list"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
-        </div>
-
-        {showNewListInput && (
-          <form onSubmit={handleCreateList} className="mb-3">
-            <div className="flex gap-1">
-              <input
-                type="text"
-                className="input-field text-sm py-1.5 flex-1"
-                placeholder="List name..."
-                value={newListName}
-                onChange={(e) => setNewListName(e.target.value)}
-                autoFocus
-              />
+      <div className="flex-shrink-0 border-b lg:border-b-0 lg:border-r border-border bg-surface">
+        {/* Mobile: horizontal scrollable pills */}
+        <div className="lg:hidden overflow-x-auto scrollbar-hide py-3">
+          <div className="flex gap-2 px-4">
+            <button
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
+                selectedListId === null ? 'bg-primary text-white' : 'bg-surface-elevated text-text-secondary hover:text-text-primary'
+              }`}
+              onClick={() => setSelectedListId(null)}
+            >
+              All Tasks
+            </button>
+            <button
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
+                selectedListId === 'inbox' ? 'bg-primary text-white' : 'bg-surface-elevated text-text-secondary hover:text-text-primary'
+              }`}
+              onClick={() => setSelectedListId('inbox')}
+            >
+              📥 Inbox
+            </button>
+            {lists.map((list) => (
               <button
-                type="submit"
-                className="px-2.5 py-1.5 bg-primary text-white rounded-lg text-sm hover:bg-primary-dark transition-colors"
-              >
-                Add
-              </button>
-            </div>
-          </form>
-        )}
-
-        <div className="space-y-1">
-          {/* All tasks */}
-          <button
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${
-              selectedListId === null
-                ? 'bg-primary text-white font-medium'
-                : 'text-text-secondary hover:bg-surface-elevated hover:text-text-primary'
-            }`}
-            onClick={() => setSelectedListId(null)}
-          >
-            <ListChecks className="w-4 h-4 flex-shrink-0" />
-            <span className="flex-1 text-left">All Tasks</span>
-          </button>
-
-          {/* Inbox (no list) */}
-          <button
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${
-              selectedListId === 'inbox'
-                ? 'bg-primary text-white font-medium'
-                : 'text-text-secondary hover:bg-surface-elevated hover:text-text-primary'
-            }`}
-            onClick={() => setSelectedListId('inbox')}
-          >
-            <span className="w-4 h-4 flex-shrink-0 text-center">📥</span>
-            <span className="flex-1 text-left">Inbox</span>
-          </button>
-
-          {/* User lists */}
-          {lists.map((list) => (
-            <div key={list.id} className="group flex items-center">
-              <button
-                className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${
-                  selectedListId === list.id
-                    ? 'bg-primary text-white font-medium'
-                    : 'text-text-secondary hover:bg-surface-elevated hover:text-text-primary'
+                key={list.id}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${
+                  selectedListId === list.id ? 'bg-primary text-white' : 'bg-surface-elevated text-text-secondary hover:text-text-primary'
                 }`}
                 onClick={() => setSelectedListId(list.id)}
               >
-                <span className="w-4 h-4 flex-shrink-0 text-center">📋</span>
-                <span className="flex-1 text-left truncate">{list.name}</span>
-                <span
-                  className={`text-xs ${
-                    selectedListId === list.id ? 'text-white/70' : 'text-text-muted'
-                  }`}
-                >
-                  {list._count.todos}
-                </span>
+                {list.name}
               </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Desktop: full vertical sidebar */}
+        <div className="hidden lg:block w-56 xl:w-64 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+              Lists
+            </h3>
+            <button
+              className="p-1 rounded-lg hover:bg-surface-elevated text-text-secondary hover:text-primary transition-colors"
+              onClick={() => setShowNewListInput((v) => !v)}
+              title="New list"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+
+          {showNewListInput && (
+            <form onSubmit={handleCreateList} className="mb-3">
+              <div className="flex gap-1">
+                <input
+                  type="text"
+                  className="input-field text-sm py-1.5 flex-1"
+                  placeholder="List name..."
+                  value={newListName}
+                  onChange={(e) => setNewListName(e.target.value)}
+                  autoFocus
+                />
+                <button
+                  type="submit"
+                  className="px-2.5 py-1.5 bg-primary text-white rounded-lg text-sm hover:bg-primary-dark transition-colors"
+                >
+                  Add
+                </button>
+              </div>
+            </form>
+          )}
+
+          <div className="space-y-1">
+            {/* All tasks */}
+            <button
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${
+                selectedListId === null
+                  ? 'bg-primary text-white font-medium'
+                  : 'text-text-secondary hover:bg-surface-elevated hover:text-text-primary'
+              }`}
+              onClick={() => setSelectedListId(null)}
+            >
+              <ListChecks className="w-4 h-4 flex-shrink-0" />
+              <span className="flex-1 text-left">All Tasks</span>
+            </button>
+
+            {/* Inbox (no list) */}
+            <button
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${
+                selectedListId === 'inbox'
+                  ? 'bg-primary text-white font-medium'
+                  : 'text-text-secondary hover:bg-surface-elevated hover:text-text-primary'
+              }`}
+              onClick={() => setSelectedListId('inbox')}
+            >
+              <span className="w-4 h-4 flex-shrink-0 text-center">📥</span>
+              <span className="flex-1 text-left">Inbox</span>
+            </button>
+
+            {/* User lists */}
+            {lists.map((list) => (
+              <div key={list.id} className="group flex items-center">
+                <button
+                  className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${
+                    selectedListId === list.id
+                      ? 'bg-primary text-white font-medium'
+                      : 'text-text-secondary hover:bg-surface-elevated hover:text-text-primary'
+                  }`}
+                  onClick={() => setSelectedListId(list.id)}
+                >
+                  <span className="w-4 h-4 flex-shrink-0 text-center">📋</span>
+                  <span className="flex-1 text-left truncate">{list.name}</span>
+                  <span
+                    className={`text-xs ${
+                      selectedListId === list.id ? 'text-white/70' : 'text-text-muted'
+                    }`}
+                  >
+                    {list._count.todos}
+                  </span>
+                </button>
               <button
                 className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-1 ml-1 rounded-lg hover:bg-red-50 text-text-secondary hover:text-red-500 transition-all"
                 onClick={() => {
@@ -236,6 +271,7 @@ export default function TodoList() {
               </button>
             </div>
           ))}
+          </div>
         </div>
       </div>
 

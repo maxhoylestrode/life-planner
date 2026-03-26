@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Play, Pause, RotateCcw, ChevronDown, ChevronUp, Trash2, Check } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../api/client';
+import { useTheme } from '../hooks/useTheme';
 
 const WORK_DURATION = 30 * 60;
 const BREAK_DURATION = 5 * 60;
@@ -291,6 +292,12 @@ function SessionLog({ sessions, onDelete }: { sessions: Session[]; onDelete: (id
 
 export default function CoffeeTimer() {
   const queryClient = useQueryClient();
+  const { preferences } = useTheme();
+
+  // Refs for configured durations — updated from preferences but never mid-session
+  const workSecsRef = useRef(WORK_DURATION);
+  const breakSecsRef = useRef(BREAK_DURATION);
+  const timerStateRef = useRef<TimerState | null>(null);
 
   // Initialise from localStorage so state survives navigation and tab switches
   const [timerState, setTimerState] = useState<TimerState>(() => {
@@ -319,6 +326,21 @@ export default function CoffeeTimer() {
     const { backgroundSessions } = fastForward(saved, Date.now());
     bgSessionsRef.current = backgroundSessions;
   }, []); // run once on mount
+
+  // Keep timerStateRef in sync for use in effects without adding timerState to deps
+  useEffect(() => { timerStateRef.current = timerState; }, [timerState]);
+
+  // Apply preference durations — only update display when timer is idle
+  useEffect(() => {
+    if (!preferences) return;
+    workSecsRef.current = preferences.coffeeWorkMins * 60;
+    breakSecsRef.current = preferences.coffeeBreakMins * 60;
+    if (timerStateRef.current?.phase === 'idle') {
+      setDisplayedTimeLeft(workSecsRef.current);
+      setTimerState(prev => ({ ...prev, pausedTimeLeft: workSecsRef.current }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preferences?.coffeeWorkMins, preferences?.coffeeBreakMins]);
 
   // Persist timer state to localStorage whenever it changes
   useEffect(() => {
@@ -351,30 +373,30 @@ export default function CoffeeTimer() {
       const workSecs = timerState.workStartTime
         ? timerState.totalWorkSecs + Math.floor((Date.now() - timerState.workStartTime) / 1000)
         : timerState.totalWorkSecs;
-      const breakEndTime = Date.now() + BREAK_DURATION * 1000;
+      const breakEndTime = Date.now() + breakSecsRef.current * 1000;
 
       setTimerState(prev => ({
         ...prev,
         phase: 'break',
         endTime: breakEndTime,
-        pausedTimeLeft: BREAK_DURATION,
+        pausedTimeLeft: breakSecsRef.current,
         workStartTime: null,
         totalWorkSecs: workSecs,
       }));
-      setDisplayedTimeLeft(BREAK_DURATION);
+      setDisplayedTimeLeft(breakSecsRef.current);
       setPendingLabel(timerState.currentTask);
       setShowLabelModal(true);
     } else if (timerState.phase === 'break') {
       playChime();
-      const workEndTime = Date.now() + WORK_DURATION * 1000;
+      const workEndTime = Date.now() + workSecsRef.current * 1000;
       setTimerState(prev => ({
         ...prev,
         phase: 'working',
         endTime: workEndTime,
-        pausedTimeLeft: WORK_DURATION,
+        pausedTimeLeft: workSecsRef.current,
         workStartTime: Date.now(),
       }));
-      setDisplayedTimeLeft(WORK_DURATION);
+      setDisplayedTimeLeft(workSecsRef.current);
     }
 
     setTimeout(() => { transitioningRef.current = false; }, 1000);
@@ -419,12 +441,12 @@ export default function CoffeeTimer() {
     : timerState.totalWorkSecs;
 
   const fillPercent =
-    timerState.phase === 'working' ? (displayedTimeLeft / WORK_DURATION) * 100
+    timerState.phase === 'working' ? (displayedTimeLeft / workSecsRef.current) * 100
     : timerState.phase === 'break' ? 0
     : 100;
 
   const commitSession = (label: string) => {
-    createSession.mutate({ label: label || 'Work session', durationMins: 30 });
+    createSession.mutate({ label: label || 'Work session', durationMins: Math.round(workSecsRef.current / 60) });
     setShowLabelModal(false);
   };
 
@@ -466,24 +488,24 @@ export default function CoffeeTimer() {
     const workSecs = timerState.workStartTime
       ? timerState.totalWorkSecs + Math.floor((now - timerState.workStartTime) / 1000)
       : timerState.totalWorkSecs;
-    const breakEndTime = now + BREAK_DURATION * 1000;
+    const breakEndTime = now + breakSecsRef.current * 1000;
     setTimerState(prev => ({
       ...prev,
       phase: 'break',
       isRunning: true,
       endTime: breakEndTime,
-      pausedTimeLeft: BREAK_DURATION,
+      pausedTimeLeft: breakSecsRef.current,
       workStartTime: null,
       totalWorkSecs: workSecs,
     }));
-    setDisplayedTimeLeft(BREAK_DURATION);
+    setDisplayedTimeLeft(breakSecsRef.current);
     setPendingLabel(timerState.currentTask);
     setShowLabelModal(true);
   };
 
   const handleReset = () => {
-    setTimerState({ ...DEFAULT_STATE });
-    setDisplayedTimeLeft(WORK_DURATION);
+    setTimerState({ ...DEFAULT_STATE, pausedTimeLeft: workSecsRef.current });
+    setDisplayedTimeLeft(workSecsRef.current);
     setShowLabelModal(false);
   };
 
@@ -500,7 +522,9 @@ export default function CoffeeTimer() {
     <div className="h-full flex flex-col page-enter overflow-auto">
       <div className="px-6 pt-6 pb-4 flex-shrink-0">
         <h1 className="text-2xl font-bold text-text-primary">Coffee Timer</h1>
-        <p className="text-text-secondary text-sm mt-0.5">Work 30 min, break 5 min — your cup drains as you go</p>
+        <p className="text-text-secondary text-sm mt-0.5">
+          Work {Math.round(workSecsRef.current / 60)} min, break {Math.round(breakSecsRef.current / 60)} min — your cup drains as you go
+        </p>
       </div>
 
       <div className="flex flex-col items-center gap-5 px-6 pb-4">
@@ -539,8 +563,8 @@ export default function CoffeeTimer() {
             className={`h-full rounded-full transition-all duration-1000 ease-linear ${phase === 'break' ? 'bg-success' : 'bg-primary'}`}
             style={{
               width: `${
-                phase === 'working' ? (displayedTimeLeft / WORK_DURATION) * 100
-                : phase === 'break' ? ((BREAK_DURATION - displayedTimeLeft) / BREAK_DURATION) * 100
+                phase === 'working' ? (displayedTimeLeft / workSecsRef.current) * 100
+                : phase === 'break' ? ((breakSecsRef.current - displayedTimeLeft) / breakSecsRef.current) * 100
                 : 100}%`,
             }}
           />

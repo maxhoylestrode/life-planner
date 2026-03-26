@@ -27,6 +27,45 @@ model User {
   todos          Todo[]
   todoLists      TodoList[]
   coffeeSessions CoffeeSession[]
+  preferences    UserPreferences?
+}
+
+model UserPreferences {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Theme
+  themeName String @default("terracotta")
+
+  // Core palette
+  colorBackground    String @default("#FFF8F0")
+  colorPrimary       String @default("#E8825A")
+  colorPrimaryDark   String @default("#C4614A")
+  colorSecondary     String @default("#F5A623")
+  colorSurface       String @default("#FFFFFF")
+  colorSurfaceElev   String @default("#FFF3E8")
+  colorTextPrimary   String @default("#3D2B1F")
+  colorTextSecondary String @default("#8B6355")
+  colorTextMuted     String @default("#B89080")
+  colorBorder        String @default("#E8D5C4")
+  colorSuccess       String @default("#6BAF7A")
+  colorAccent        String @default("#9B7FA6")
+
+  // Typography
+  fontFamily String @default("inter")
+  fontSize   String @default("md")
+
+  // Layout density
+  density String @default("comfortable")
+
+  // Feature defaults
+  defaultCalendarView String @default("month")
+  coffeeWorkMins      Int    @default(30)
+  coffeeBreakMins     Int    @default(5)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model CoffeeSession {

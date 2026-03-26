@@ -4,37 +4,37 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#FFF8F0',
+        background: 'var(--color-background)',
         primary: {
-          DEFAULT: '#E8825A',
-          dark: '#C4614A',
+          DEFAULT: 'rgb(var(--color-primary-rgb) / <alpha-value>)',
+          dark: 'var(--color-primary-dark)',
           light: '#F0A080',
         },
         secondary: {
-          DEFAULT: '#F5A623',
+          DEFAULT: 'rgb(var(--color-secondary-rgb) / <alpha-value>)',
           light: '#F8BE5C',
           dark: '#D4891A',
         },
         surface: {
-          DEFAULT: '#FFFFFF',
-          elevated: '#FFF3E8',
+          DEFAULT: 'var(--color-surface)',
+          elevated: 'var(--color-surface-elevated)',
         },
         text: {
-          primary: '#3D2B1F',
-          secondary: '#8B6355',
-          muted: '#B89080',
+          primary: 'var(--color-text-primary)',
+          secondary: 'var(--color-text-secondary)',
+          muted: 'var(--color-text-muted)',
         },
         border: {
-          DEFAULT: '#E8D5C4',
+          DEFAULT: 'rgb(var(--color-border-rgb) / <alpha-value>)',
           light: '#F0E4D6',
         },
         success: {
-          DEFAULT: '#6BAF7A',
+          DEFAULT: 'var(--color-success)',
           light: '#8EC89B',
           dark: '#4D9060',
         },
         accent: {
-          DEFAULT: '#9B7FA6',
+          DEFAULT: 'rgb(var(--color-accent-rgb) / <alpha-value>)',
           light: '#B89CC0',
           dark: '#7A628A',
         },
@@ -69,6 +69,7 @@ export default {
         'fade-in': 'fadeIn 0.2s ease-out',
         'slide-up': 'slideUp 0.3s ease-out',
         'slide-in-right': 'slideInRight 0.3s ease-out',
+        'slide-in-left': 'slideInLeft 0.3s ease-out',
         'scale-in': 'scaleIn 0.2s ease-out',
         'check-draw': 'checkDraw 0.3s ease-out forwards',
         'bounce-in': 'bounceIn 0.4s ease-out',
@@ -84,6 +85,10 @@ export default {
         },
         slideInRight: {
           '0%': { transform: 'translateX(24px)', opacity: '0' },
+          '100%': { transform: 'translateX(0)', opacity: '1' },
+        },
+        slideInLeft: {
+          '0%': { transform: 'translateX(-24px)', opacity: '0' },
           '100%': { transform: 'translateX(0)', opacity: '1' },
         },
         scaleIn: {

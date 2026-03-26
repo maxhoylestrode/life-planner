@@ -6,15 +6,22 @@
   :root {
     --color-background: #FFF8F0;
     --color-primary: #E8825A;
+    --color-primary-rgb: 232 130 90;
     --color-primary-dark: #C4614A;
     --color-secondary: #F5A623;
+    --color-secondary-rgb: 245 166 35;
     --color-surface: #FFFFFF;
     --color-surface-elevated: #FFF3E8;
     --color-text-primary: #3D2B1F;
     --color-text-secondary: #8B6355;
+    --color-text-muted: #B89080;
     --color-border: #E8D5C4;
+    --color-border-rgb: 232 213 196;
     --color-success: #6BAF7A;
     --color-accent: #9B7FA6;
+    --color-accent-rgb: 155 127 166;
+    --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-size-base: 16px;
   }
 
   * {
@@ -22,7 +29,8 @@
   }
 
   html {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: var(--font-family);
+    font-size: var(--font-size-base);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -236,4 +244,27 @@
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
   }
+}
+
+/* Density adjustments */
+[data-density="compact"] .nav-item {
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+}
+
+[data-density="compact"] .modal-content {
+  padding: 1rem;
+}
+
+[data-density="spacious"] .nav-item {
+  padding-top: 0.875rem;
+  padding-bottom: 0.875rem;
+}
+
+[data-density="compact"] {
+  line-height: 1.4;
+}
+
+[data-density="spacious"] {
+  line-height: 1.65;
 }

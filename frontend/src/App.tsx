@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthContext, useAuthProvider, useAuth } from './hooks/useAuth';
+import { ThemeContext, useThemeProvider } from './hooks/useTheme';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -9,6 +10,7 @@ import Notes from './pages/Notes';
 import Calendar from './pages/Calendar';
 import Todos from './pages/Todos';
 import CoffeeTimer from './pages/CoffeeTimer';
+import Settings from './pages/Settings';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -76,6 +78,7 @@ function AppRoutes() {
         <Route path="calendar" element={<Calendar />} />
         <Route path="todos" element={<Todos />} />
         <Route path="coffee" element={<CoffeeTimer />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -87,12 +90,19 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
   return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
 }
 
+function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const theme = useThemeProvider();
+  return <ThemeContext.Provider value={theme}>{children}</ThemeContext.Provider>;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
-          <AppRoutes />
+          <ThemeProvider>
+            <AppRoutes />
+          </ThemeProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

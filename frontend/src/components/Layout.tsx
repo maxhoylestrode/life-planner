@@ -20,7 +20,7 @@ export default function Layout() {
             className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in"
             onClick={() => setMobileSidebarOpen(false)}
           />
-          <div className="absolute left-0 top-0 h-full animate-slide-in-right">
+          <div className="absolute left-0 top-0 h-full animate-slide-in-left">
             <Sidebar onClose={() => setMobileSidebarOpen(false)} />
           </div>
         </div>

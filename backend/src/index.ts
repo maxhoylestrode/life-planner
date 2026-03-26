@@ -7,6 +7,7 @@ import calendarRoutes from './routes/calendar';
 import todosRoutes from './routes/todos';
 import coffeeRoutes from './routes/coffee';
 import icalRoutes from './routes/ical';
+import preferencesRoutes from './routes/preferences';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -32,6 +33,7 @@ app.use('/api/calendar', calendarRoutes);
 app.use('/api/todos', todosRoutes);
 app.use('/api/coffee', coffeeRoutes);
 app.use('/api/ical', icalRoutes);
+app.use('/api/preferences', preferencesRoutes);
 
 // 404 handler
 app.use((_req, res) => {
