@@ -13,6 +13,7 @@ model User {
   username       String          @unique
   passwordHash   String
   createdAt      DateTime        @default(now())
+  icalToken      String?         @unique
   notes          Note[]
   events         Event[]
   todos          Todo[]
@@ -45,19 +46,34 @@ model Note {
 }
 
 model Event {
-  id          String    @id @default(cuid())
-  title       String
-  description String?
-  startTime   DateTime
-  endTime     DateTime?
-  allDay      Boolean   @default(false)
-  color       String    @default("#E8825A")
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String    @id @default(cuid())
+  title         String
+  description   String?
+  startTime     DateTime
+  endTime       DateTime?
+  allDay        Boolean   @default(false)
+  color         String    @default("#E8825A")
+
+  // Recurring events
+  rrule         String?
+  recurrenceId  String?
+  parentEventId String?
+  parentEvent   Event?    @relation("RecurringChildren", fields: [parentEventId], references: [id], onDelete: Cascade)
+  childEvents   Event[]   @relation("RecurringChildren")
+
+  // iCal sync
+  icalUid       String?   @unique
+
+  // Reminders
+  reminderMinutes Int?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, startTime])
+  @@index([userId, icalUid])
 }
 
 model TodoList {

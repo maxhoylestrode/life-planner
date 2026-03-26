@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '../lib/prisma';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
@@ -187,6 +188,34 @@ router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
     res.json({ accessToken: newAccessToken, refreshToken: newRefreshToken, user });
   } catch (error) {
     res.status(401).json({ error: 'Invalid or expired refresh token' });
+  }
+});
+
+// GET /api/auth/ical-token — returns (or generates) the user's persistent iCal feed token
+router.get('/ical-token', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    let user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    if (!user.icalToken) {
+      user = await prisma.user.update({
+        where: { id: req.userId },
+        data: { icalToken: uuidv4() },
+      });
+    }
+
+    const baseUrl =
+      process.env.VITE_API_URL?.replace('/api', '') || `http://localhost:${process.env.PORT || 3001}`;
+    res.json({
+      feedUrl: `${baseUrl}/api/ical/${user.id}/calendar.ics?token=${user.icalToken}`,
+      token: user.icalToken,
+    });
+  } catch (error) {
+    console.error('iCal token error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
