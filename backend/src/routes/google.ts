@@ -105,7 +105,7 @@ router.post('/sync', authenticate, async (req: AuthRequest, res: Response): Prom
     });
 
     // Auto-refresh tokens if needed
-    oauth2Client.on('tokens', async (tokens) => {
+    oauth2Client.on('tokens', async (tokens: { access_token?: string | null; refresh_token?: string | null; expiry_date?: number | null }) => {
       await prisma.user.update({
         where: { id: req.userId },
         data: {
