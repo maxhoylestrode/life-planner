@@ -13,7 +13,15 @@ model User {
   username       String          @unique
   passwordHash   String
   createdAt      DateTime        @default(now())
-  icalToken      String?         @unique
+  icalToken               String?         @unique
+
+  // Google Calendar OAuth
+  googleAccessToken       String?
+  googleRefreshToken      String?
+  googleTokenExpiry       DateTime?
+  googleCalendarId        String?
+  googleLastSync          DateTime?
+
   notes          Note[]
   events         Event[]
   todos          Todo[]
