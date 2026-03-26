@@ -114,6 +114,10 @@
   .badge-low {
     @apply text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700;
   }
+
+  .event-pill {
+    @apply text-xs font-medium px-1.5 py-0.5 rounded-md truncate cursor-pointer hover:opacity-90 transition-opacity;
+  }
 }
 
 @layer utilities {
