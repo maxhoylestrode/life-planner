@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Pencil, Trash2, Palette } from 'lucide-react';
+import { useTheme } from '../../hooks/useTheme';
 
 export interface Note {
   id: string;
@@ -18,6 +19,19 @@ const NOTE_COLORS = [
   { value: '#F5E06A', label: 'Lemon' },
   { value: '#D4A8E8', label: 'Lilac' },
 ];
+
+const NOTE_COLORS_DARK = [
+  { value: '#2D2318', label: 'Amber' },
+  { value: '#2D1E1A', label: 'Peach' },
+  { value: '#1A2C1E', label: 'Mint' },
+  { value: '#1C1C2E', label: 'Lavender' },
+  { value: '#2A2716', label: 'Lemon' },
+  { value: '#231A2C', label: 'Lilac' },
+];
+
+// Maps canonical light color → dark display color, and vice versa
+const LIGHT_TO_DARK = Object.fromEntries(NOTE_COLORS.map((c, i) => [c.value, NOTE_COLORS_DARK[i].value]));
+const DARK_TO_LIGHT = Object.fromEntries(NOTE_COLORS_DARK.map((c, i) => [c.value, NOTE_COLORS[i].value]));
 
 interface NoteCardProps {
   note: Note;
@@ -55,15 +69,30 @@ export default function NoteCard({
   onColorChange,
 }: NoteCardProps) {
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const { preferences } = useTheme();
+
+  const isDark = useMemo(() => {
+    if (!preferences) return false;
+    const bg = preferences.colorBackground;
+    const r = parseInt(bg.slice(1, 3), 16);
+    const g = parseInt(bg.slice(3, 5), 16);
+    const b = parseInt(bg.slice(5, 7), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
+  }, [preferences?.colorBackground]);
+
+  const displayColor = isDark ? (LIGHT_TO_DARK[note.color] ?? note.color) : note.color;
+  const pickerColors = isDark ? NOTE_COLORS_DARK : NOTE_COLORS;
 
   const handleColorClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowColorPicker((v) => !v);
   };
 
-  const handleColorSelect = (e: React.MouseEvent, color: string) => {
+  const handleColorSelect = (e: React.MouseEvent, pickedColor: string) => {
     e.stopPropagation();
-    onColorChange(color);
+    // Always save canonical light color so switching themes preserves semantics
+    const canonicalColor = isDark ? (DARK_TO_LIGHT[pickedColor] ?? pickedColor) : pickedColor;
+    onColorChange(canonicalColor);
     setShowColorPicker(false);
   };
 
@@ -80,13 +109,13 @@ export default function NoteCard({
   return (
     <div
       className="group relative rounded-2xl p-4 cursor-pointer border border-border/60 hover:border-border hover:shadow-warm-md transition-all duration-200 animate-fade-in"
-      style={{ backgroundColor: note.color }}
+      style={{ backgroundColor: displayColor }}
       onClick={onClick}
     >
       {/* Color accent strip */}
       <div
         className="absolute top-0 left-4 right-4 h-1 rounded-b-full opacity-40"
-        style={{ backgroundColor: darkenColor(note.color) }}
+        style={{ backgroundColor: darkenColor(displayColor) }}
       />
 
       {/* Content */}
@@ -106,7 +135,7 @@ export default function NoteCard({
       <div className="absolute top-3 right-3 flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-150">
         <div className="relative">
           <button
-            className="p-1.5 rounded-lg bg-white/80 hover:bg-white text-text-secondary hover:text-primary shadow-warm transition-all"
+            className="p-1.5 rounded-lg bg-surface/80 hover:bg-surface text-text-secondary hover:text-primary shadow-warm transition-all"
             onClick={handleColorClick}
             title="Change color"
           >
@@ -119,13 +148,13 @@ export default function NoteCard({
               className="absolute right-0 top-8 z-10 p-2 bg-surface rounded-xl shadow-warm-lg border border-border flex gap-1.5 animate-scale-in"
               onClick={(e) => e.stopPropagation()}
             >
-              {NOTE_COLORS.map((c) => (
+              {pickerColors.map((c) => (
                 <button
                   key={c.value}
                   className="w-6 h-6 rounded-full border-2 transition-all hover:scale-110"
                   style={{
                     backgroundColor: c.value,
-                    borderColor: note.color === c.value ? '#E8825A' : '#E8D5C4',
+                    borderColor: displayColor === c.value ? 'var(--color-primary)' : 'var(--color-border)',
                   }}
                   title={c.label}
                   onClick={(e) => handleColorSelect(e, c.value)}
@@ -136,7 +165,7 @@ export default function NoteCard({
         </div>
 
         <button
-          className="p-1.5 rounded-lg bg-white/80 hover:bg-white text-text-secondary hover:text-primary shadow-warm transition-all"
+          className="p-1.5 rounded-lg bg-surface/80 hover:bg-surface text-text-secondary hover:text-primary shadow-warm transition-all"
           onClick={handleEditClick}
           title="Edit note"
         >
@@ -144,7 +173,7 @@ export default function NoteCard({
         </button>
 
         <button
-          className="p-1.5 rounded-lg bg-white/80 hover:bg-white text-text-secondary hover:text-red-500 shadow-warm transition-all"
+          className="p-1.5 rounded-lg bg-surface/80 hover:bg-surface text-text-secondary hover:text-red-500 shadow-warm transition-all"
           onClick={handleDeleteClick}
           title="Delete note"
         >
@@ -163,4 +192,4 @@ function darkenColor(hex: string): string {
   return `rgb(${Math.max(0, r - 30)}, ${Math.max(0, g - 30)}, ${Math.max(0, b - 30)})`;
 }
 
-export { NOTE_COLORS };
+export { NOTE_COLORS, NOTE_COLORS_DARK, LIGHT_TO_DARK, DARK_TO_LIGHT };

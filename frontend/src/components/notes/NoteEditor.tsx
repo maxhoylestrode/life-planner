@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { X, Save, Palette } from 'lucide-react';
-import { NOTE_COLORS, Note } from './NoteCard';
+import { NOTE_COLORS, NOTE_COLORS_DARK, LIGHT_TO_DARK, DARK_TO_LIGHT, Note } from './NoteCard';
+import { useTheme } from '../../hooks/useTheme';
 
 interface NoteEditorProps {
   note?: Note | null;
@@ -11,8 +12,22 @@ interface NoteEditorProps {
 export default function NoteEditor({ note, onSave, onClose }: NoteEditorProps) {
   const [title, setTitle] = useState(note?.title || '');
   const [content, setContent] = useState(note?.content || '');
+  // color stores the canonical light value
   const [color, setColor] = useState(note?.color || '#FFD9A8');
   const [showColors, setShowColors] = useState(false);
+  const { preferences } = useTheme();
+
+  const isDark = useMemo(() => {
+    if (!preferences) return false;
+    const bg = preferences.colorBackground;
+    const r = parseInt(bg.slice(1, 3), 16);
+    const g = parseInt(bg.slice(3, 5), 16);
+    const b = parseInt(bg.slice(5, 7), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
+  }, [preferences?.colorBackground]);
+
+  const displayColor = isDark ? (LIGHT_TO_DARK[color] ?? color) : color;
+  const pickerColors = isDark ? NOTE_COLORS_DARK : NOTE_COLORS;
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const titleRef = useRef<HTMLInputElement>(null);
@@ -50,7 +65,7 @@ export default function NoteEditor({ note, onSave, onClose }: NoteEditorProps) {
     <div className="modal-overlay" onClick={onClose}>
       <div
         className="modal-content max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden"
-        style={{ backgroundColor: color }}
+        style={{ backgroundColor: displayColor }}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
@@ -71,17 +86,18 @@ export default function NoteEditor({ note, onSave, onClose }: NoteEditorProps) {
               </button>
               {showColors && (
                 <div className="absolute right-0 top-10 z-10 p-2 bg-surface rounded-xl shadow-warm-lg border border-border flex gap-1.5 animate-scale-in">
-                  {NOTE_COLORS.map((c) => (
+                  {pickerColors.map((c) => (
                     <button
                       key={c.value}
                       className="w-6 h-6 rounded-full border-2 transition-all hover:scale-110"
                       style={{
                         backgroundColor: c.value,
-                        borderColor: color === c.value ? '#E8825A' : '#E8D5C4',
+                        borderColor: displayColor === c.value ? 'var(--color-primary)' : 'var(--color-border)',
                       }}
                       title={c.label}
                       onClick={() => {
-                        setColor(c.value);
+                        // Save canonical light color
+                        setColor(isDark ? (DARK_TO_LIGHT[c.value] ?? c.value) : c.value);
                         setShowColors(false);
                       }}
                     />

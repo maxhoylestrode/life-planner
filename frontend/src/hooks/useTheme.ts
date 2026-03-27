@@ -87,6 +87,13 @@ export function applyPreferences(prefs: UserPreferences): void {
 
   // Density
   root.setAttribute('data-density', prefs.density ?? 'comfortable');
+
+  // Dark mode detection (luminance of background)
+  const bgR = parseInt(prefs.colorBackground.slice(1, 3), 16);
+  const bgG = parseInt(prefs.colorBackground.slice(3, 5), 16);
+  const bgB = parseInt(prefs.colorBackground.slice(5, 7), 16);
+  const luminance = (0.299 * bgR + 0.587 * bgG + 0.114 * bgB) / 255;
+  root.setAttribute('data-dark', luminance < 0.5 ? 'true' : 'false');
 }
 
 export function useThemeProvider(): ThemeContextValue {

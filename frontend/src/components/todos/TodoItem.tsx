@@ -155,7 +155,7 @@ export default function TodoItem({ todo, onToggle, onDelete, onUpdate }: TodoIte
           </button>
         )}
         <button
-          className="p-1.5 rounded-lg text-text-secondary hover:text-red-500 hover:bg-red-50 transition-colors"
+          className="p-1.5 rounded-lg text-text-secondary hover:text-red-500 hover:bg-red-500/10 transition-colors"
           onClick={onDelete}
           title="Delete"
         >
