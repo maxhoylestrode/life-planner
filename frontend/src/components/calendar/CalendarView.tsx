@@ -755,7 +755,7 @@ export default function CalendarView() {
                       {/* Multi-day bars overlay */}
                       <div
                         className="absolute inset-0 z-10 pointer-events-none"
-                        style={{ paddingTop: 30 }}
+                        style={{ paddingTop: 38 }}
                       >
                         {layout.bars.map((bar) => {
                           const span = bar.endCol - bar.startCol + 1;
