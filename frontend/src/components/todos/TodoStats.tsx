@@ -62,7 +62,7 @@ export default function TodoStats() {
             <span>Today's progress</span>
             <span className="font-semibold text-primary">{progressPercent}%</span>
           </div>
-          <div className="h-2.5 bg-white/60 rounded-full overflow-hidden">
+          <div className="h-2.5 bg-border/40 rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-primary to-secondary rounded-full transition-all duration-500"
               style={{ width: `${progressPercent}%` }}
@@ -76,19 +76,19 @@ export default function TodoStats() {
 
       {/* Stats row */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white/60 rounded-xl p-3">
+        <div className="bg-surface-elevated/60 rounded-xl p-3">
           <p className="text-2xl font-bold text-primary">{completedToday}</p>
           <p className="text-xs text-text-secondary mt-0.5">Done today</p>
         </div>
-        <div className="bg-white/60 rounded-xl p-3">
+        <div className="bg-surface-elevated/60 rounded-xl p-3">
           <p className="text-2xl font-bold text-text-primary">{totalCompleted}</p>
           <p className="text-xs text-text-secondary mt-0.5">⭐ Total completed</p>
         </div>
-        <div className="bg-white/60 rounded-xl p-3">
+        <div className="bg-surface-elevated/60 rounded-xl p-3">
           <p className="text-2xl font-bold text-text-secondary">{totalPending}</p>
           <p className="text-xs text-text-secondary mt-0.5">Remaining</p>
         </div>
-        <div className="bg-white/60 rounded-xl p-3">
+        <div className="bg-surface-elevated/60 rounded-xl p-3">
           <p className="text-2xl font-bold text-accent">{totalToday}</p>
           <p className="text-xs text-text-secondary mt-0.5">Created today</p>
         </div>
