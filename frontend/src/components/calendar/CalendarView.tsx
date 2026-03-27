@@ -72,6 +72,109 @@ function formatTime(iso: string): string {
   });
 }
 
+// ---- Multi-day bar layout types & helpers ----
+
+interface SpanBar {
+  event: CalendarEvent;
+  startCol: number;
+  endCol: number;
+  slot: number;
+  continuesLeft: boolean;
+  continuesRight: boolean;
+}
+
+interface WeekLayout {
+  days: Array<{ date: Date; inMonth: boolean }>;
+  bars: SpanBar[];
+  hiddenBars: SpanBar[];
+  singleDayEvents: Record<number, CalendarEvent[]>;
+}
+
+function dayFloor(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+function computeWeekLayouts(
+  calendarDays: Array<{ date: Date; inMonth: boolean }>,
+  events: CalendarEvent[],
+): WeekLayout[] {
+  const weeks: WeekLayout[] = [];
+  for (let w = 0; w < calendarDays.length; w += 7) {
+    const weekDays = calendarDays.slice(w, w + 7);
+    const wsTime = dayFloor(weekDays[0].date);
+    const weTime = dayFloor(weekDays[6].date);
+
+    const weekEvents = events.filter((ev) => {
+      const start = dayFloor(new Date(ev.startTime));
+      const end = ev.endTime ? dayFloor(new Date(ev.endTime)) : start;
+      return start <= weTime && end >= wsTime;
+    });
+
+    const multiDay: Array<{
+      event: CalendarEvent;
+      startCol: number;
+      endCol: number;
+      continuesLeft: boolean;
+      continuesRight: boolean;
+    }> = [];
+    const singleDayEvents: Record<number, CalendarEvent[]> = {};
+
+    for (const ev of weekEvents) {
+      const evStartDay = dayFloor(new Date(ev.startTime));
+      const evEndDay = ev.endTime ? dayFloor(new Date(ev.endTime)) : evStartDay;
+      const isMultiDay = evEndDay > evStartDay;
+
+      if (isMultiDay) {
+        const continuesLeft = evStartDay < wsTime;
+        const continuesRight = evEndDay > weTime;
+        const clippedStart = Math.max(evStartDay, wsTime);
+        const clippedEnd = Math.min(evEndDay, weTime);
+        const startCol = weekDays.findIndex((d) => dayFloor(d.date) === clippedStart);
+        const endCol = weekDays.findIndex((d) => dayFloor(d.date) === clippedEnd);
+        multiDay.push({
+          event: ev,
+          startCol: startCol >= 0 ? startCol : 0,
+          endCol: endCol >= 0 ? endCol : 6,
+          continuesLeft,
+          continuesRight,
+        });
+      } else {
+        const col = weekDays.findIndex((d) => dayFloor(d.date) === evStartDay);
+        if (col >= 0) {
+          if (!singleDayEvents[col]) singleDayEvents[col] = [];
+          singleDayEvents[col].push(ev);
+        }
+      }
+    }
+
+    // Longer spans first within same start col
+    multiDay.sort(
+      (a, b) => a.startCol - b.startCol || (b.endCol - b.startCol) - (a.endCol - a.startCol),
+    );
+
+    // Greedy slot assignment
+    const slotEndCols: number[] = [];
+    const barsWithSlots: SpanBar[] = [];
+    for (const item of multiDay) {
+      let slot = slotEndCols.findIndex((ec) => ec < item.startCol);
+      if (slot === -1) {
+        slot = slotEndCols.length;
+        slotEndCols.push(-1);
+      }
+      slotEndCols[slot] = item.endCol;
+      barsWithSlots.push({ ...item, slot });
+    }
+
+    weeks.push({
+      days: weekDays,
+      bars: barsWithSlots.filter((b) => b.slot < 3),
+      hiddenBars: barsWithSlots.filter((b) => b.slot >= 3),
+      singleDayEvents,
+    });
+  }
+  return weeks;
+}
+
 /** Get Monday of the week containing `date` */
 function getWeekStart(date: Date): Date {
   const d = new Date(date);
@@ -336,6 +439,11 @@ export default function CalendarView() {
     });
     return map;
   }, [data]);
+
+  const weekLayouts = useMemo(
+    () => computeWeekLayouts(calendarDays, data?.events || []),
+    [calendarDays, data],
+  );
 
   const selectedDateKey = `${selectedDate.getFullYear()}-${selectedDate.getMonth()}-${selectedDate.getDate()}`;
   const selectedEvents = eventsByDate[selectedDateKey] || [];
@@ -640,61 +748,123 @@ export default function CalendarView() {
                 onDragEnd={handleMonthDragEnd}
                 onDragCancel={() => setActiveDragId(null)}
               >
-                <div className="grid grid-cols-7 flex-1 gap-px bg-border rounded-2xl overflow-hidden border border-border">
-                  {calendarDays.map(({ date, inMonth }, idx) => {
-                    const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-                    const dayEvents = eventsByDate[key] || [];
-                    const isToday = isSameDay(date, today);
-                    const isSelected = isSameDay(date, selectedDate);
-                    const maxVisible = 3;
-                    const overflow = dayEvents.length - maxVisible;
-
-                    return (
-                      <DroppableDayCell
-                        key={idx}
-                        date={date}
-                        className={`
-                          bg-surface min-h-[60px] sm:min-h-[80px] lg:min-h-[100px] p-1.5 cursor-pointer transition-colors relative
-                          ${!inMonth ? 'opacity-40' : ''}
-                          ${isSelected && !isToday ? 'bg-primary/5' : ''}
-                          hover:bg-surface-elevated
-                        `}
-                        onClick={() => {
-                          setSelectedDate(date);
-                          if (!inMonth) {
-                            setViewDate(new Date(date.getFullYear(), date.getMonth(), 1));
-                          }
-                        }}
-                        onDoubleClick={() => openNewEvent(date)}
+                {/* BAR_SLOT = 22px (20px bar + 2px gap), 3 slots = 66px reserved */}
+                <div className="flex-1 flex flex-col gap-px bg-border rounded-2xl overflow-hidden border border-border">
+                  {weekLayouts.map((layout, wi) => (
+                    <div key={wi} className="flex-1 relative">
+                      {/* Multi-day bars overlay */}
+                      <div
+                        className="absolute inset-0 z-10 pointer-events-none"
+                        style={{ paddingTop: 30 }}
                       >
-                        <div className="flex items-center justify-between mb-1">
-                          <span
-                            className={`
-                              text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full transition-colors
-                              ${isToday ? 'bg-primary text-white font-bold' : isSelected ? 'bg-primary/20 text-primary font-semibold' : 'text-text-primary'}
-                            `}
-                          >
-                            {date.getDate()}
-                          </span>
-                        </div>
-                        <div className="space-y-0.5">
-                          {dayEvents.slice(0, maxVisible).map((ev) => (
-                            <DraggableMonthPill
-                              key={ev.id}
-                              event={ev}
-                              isDragging={activeDragId === ev.id}
-                              onClick={() => openEditEvent(ev)}
-                            />
-                          ))}
-                          {overflow > 0 && (
-                            <div className="text-xs text-text-secondary font-medium px-1">
-                              +{overflow} more
+                        {layout.bars.map((bar) => {
+                          const span = bar.endCol - bar.startCol + 1;
+                          const leftPct = (bar.startCol / 7) * 100;
+                          const widthPct = (span / 7) * 100;
+                          const borderRadius = bar.continuesLeft && bar.continuesRight
+                            ? '0'
+                            : bar.continuesLeft
+                            ? '0 4px 4px 0'
+                            : bar.continuesRight
+                            ? '4px 0 0 4px'
+                            : '4px';
+                          return (
+                            <div
+                              key={`${bar.event.id}-${wi}`}
+                              className="absolute flex items-center text-white text-xs truncate cursor-pointer pointer-events-auto px-1.5"
+                              style={{
+                                left: `calc(${leftPct}% + ${bar.continuesLeft ? 0 : 2}px)`,
+                                width: `calc(${widthPct}% - ${(bar.continuesLeft ? 0 : 2) + (bar.continuesRight ? 0 : 2)}px)`,
+                                top: bar.slot * 22,
+                                height: 20,
+                                backgroundColor: bar.event.color,
+                                opacity: bar.continuesLeft || bar.continuesRight ? 0.82 : 1,
+                                borderRadius,
+                              }}
+                              onClick={(e) => { e.stopPropagation(); openEditEvent(bar.event); }}
+                              title={bar.event.title}
+                            >
+                              {!bar.continuesLeft && !bar.event.allDay && (
+                                <span className="mr-0.5 opacity-80">{formatTime(bar.event.startTime)}</span>
+                              )}
+                              {bar.event.title}
                             </div>
-                          )}
-                        </div>
-                      </DroppableDayCell>
-                    );
-                  })}
+                          );
+                        })}
+                      </div>
+
+                      {/* Day cells */}
+                      <div className="grid grid-cols-7 gap-px bg-border h-full">
+                        {layout.days.map(({ date, inMonth }, colIdx) => {
+                          const isToday = isSameDay(date, today);
+                          const isSelected = isSameDay(date, selectedDate);
+
+                          // Max bar slot used in this col (for reserving space)
+                          const maxBarSlot = layout.bars.reduce(
+                            (mx, b) => b.startCol <= colIdx && colIdx <= b.endCol ? Math.max(mx, b.slot) : mx,
+                            -1,
+                          );
+                          const hiddenBarCount = layout.hiddenBars.filter(
+                            (b) => b.startCol <= colIdx && colIdx <= b.endCol,
+                          ).length;
+                          // Pill slots available = slots 0..2 not occupied by bars
+                          const pillSlotsAvail = Math.max(0, 2 - maxBarSlot);
+                          const dayPills = layout.singleDayEvents[colIdx] || [];
+                          const visiblePills = dayPills.slice(0, pillSlotsAvail);
+                          const pillOverflow = dayPills.length - visiblePills.length + hiddenBarCount;
+
+                          return (
+                            <DroppableDayCell
+                              key={colIdx}
+                              date={date}
+                              className={`
+                                bg-surface min-h-[100px] lg:min-h-[120px] p-1.5 cursor-pointer transition-colors relative
+                                ${!inMonth ? 'opacity-40' : ''}
+                                ${isSelected && !isToday ? 'bg-primary/5' : ''}
+                                hover:bg-surface-elevated
+                              `}
+                              onClick={() => {
+                                setSelectedDate(date);
+                                if (!inMonth) {
+                                  setViewDate(new Date(date.getFullYear(), date.getMonth(), 1));
+                                }
+                              }}
+                              onDoubleClick={() => openNewEvent(date)}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span
+                                  className={`
+                                    text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full transition-colors
+                                    ${isToday ? 'bg-primary text-white font-bold' : isSelected ? 'bg-primary/20 text-primary font-semibold' : 'text-text-primary'}
+                                  `}
+                                >
+                                  {date.getDate()}
+                                </span>
+                              </div>
+                              {/* Space reserved for bar slots */}
+                              <div style={{ height: 66 }} />
+                              {/* Single-day event pills */}
+                              <div className="space-y-0.5">
+                                {visiblePills.map((ev) => (
+                                  <DraggableMonthPill
+                                    key={ev.id}
+                                    event={ev}
+                                    isDragging={activeDragId === ev.id}
+                                    onClick={() => openEditEvent(ev)}
+                                  />
+                                ))}
+                                {pillOverflow > 0 && (
+                                  <div className="text-xs text-text-secondary font-medium px-1">
+                                    +{pillOverflow} more
+                                  </div>
+                                )}
+                              </div>
+                            </DroppableDayCell>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 <DragOverlay>
