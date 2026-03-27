@@ -11,7 +11,7 @@ interface NoteEditorProps {
 export default function NoteEditor({ note, onSave, onClose }: NoteEditorProps) {
   const [title, setTitle] = useState(note?.title || '');
   const [content, setContent] = useState(note?.content || '');
-  const [color, setColor] = useState(note?.color || '#FFF3E8');
+  const [color, setColor] = useState(note?.color || '#FFD9A8');
   const [showColors, setShowColors] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');

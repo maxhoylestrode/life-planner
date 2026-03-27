@@ -11,12 +11,12 @@ export interface Note {
 }
 
 const NOTE_COLORS = [
-  { value: '#FFF3E8', label: 'Warm cream' },
-  { value: '#FCE4D0', label: 'Peach' },
-  { value: '#E8F4E8', label: 'Mint' },
-  { value: '#E8E8F8', label: 'Lavender' },
-  { value: '#FFF8D0', label: 'Lemon' },
-  { value: '#F0E8F8', label: 'Lilac' },
+  { value: '#FFD9A8', label: 'Warm amber' },
+  { value: '#F5B89A', label: 'Peach' },
+  { value: '#A8D8AA', label: 'Mint' },
+  { value: '#B8B8E8', label: 'Lavender' },
+  { value: '#F5E06A', label: 'Lemon' },
+  { value: '#D4A8E8', label: 'Lilac' },
 ];
 
 interface NoteCardProps {
@@ -95,11 +95,11 @@ export default function NoteCard({
           {note.title || 'Untitled'}
         </h3>
         {note.content && (
-          <p className="text-text-secondary text-xs leading-relaxed line-clamp-4 mb-3">
+          <p className="text-text-primary text-xs leading-relaxed line-clamp-4 mb-3">
             {note.content}
           </p>
         )}
-        <p className="text-text-muted text-xs">{formatDate(note.updatedAt)}</p>
+        <p className="text-text-secondary text-xs">{formatDate(note.updatedAt)}</p>
       </div>
 
       {/* Actions - always visible on touch, hover on desktop */}
