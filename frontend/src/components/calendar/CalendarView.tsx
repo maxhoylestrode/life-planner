@@ -752,11 +752,10 @@ export default function CalendarView() {
                 <div className="flex-1 flex flex-col gap-px bg-border rounded-2xl overflow-hidden border border-border">
                   {weekLayouts.map((layout, wi) => (
                     <div key={wi} className="flex-1 relative">
-                      {/* Multi-day bars overlay */}
-                      <div
-                        className="absolute inset-0 z-10 pointer-events-none"
-                        style={{ paddingTop: 38 }}
-                      >
+                      {/* Multi-day bars overlay
+                          Bars are absolute children of the week-row's relative div.
+                          top = cell-padding(6) + day-badge(28) + mb-1(4) + slot offset */}
+                      <div className="absolute inset-0 z-10 pointer-events-none">
                         {layout.bars.map((bar) => {
                           const span = bar.endCol - bar.startCol + 1;
                           const leftPct = (bar.startCol / 7) * 100;
@@ -775,7 +774,7 @@ export default function CalendarView() {
                               style={{
                                 left: `calc(${leftPct}% + ${bar.continuesLeft ? 0 : 2}px)`,
                                 width: `calc(${widthPct}% - ${(bar.continuesLeft ? 0 : 2) + (bar.continuesRight ? 0 : 2)}px)`,
-                                top: bar.slot * 22,
+                                top: 38 + bar.slot * 22,
                                 height: 20,
                                 backgroundColor: bar.event.color,
                                 opacity: bar.continuesLeft || bar.continuesRight ? 0.82 : 1,
