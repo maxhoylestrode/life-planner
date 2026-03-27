@@ -212,6 +212,8 @@ export default function TimeGrid({
   const hours = Array.from({ length: 24 }, (_, i) => i);
   const today = new Date();
 
+  const MIN_COL_WIDTH = 90;
+
   return (
     <DndContext
       sensors={sensors}
@@ -219,131 +221,150 @@ export default function TimeGrid({
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveDragId(null)}
     >
-      <div className="flex flex-col h-full min-h-0">
-        {/* Day headers */}
-        <div className="flex border-b border-border bg-surface flex-shrink-0">
-          <div className="w-14 flex-shrink-0" />
-          {days.map((day, i) => {
-            const isToday = isSameDay(day, today);
-            return (
-              <div key={i} className="flex-1 text-center py-2 border-l border-border">
-                <p className="text-xs text-text-secondary uppercase tracking-wide">
-                  {day.toLocaleDateString('en-US', { weekday: 'short' })}
-                </p>
-                <p
-                  className={`text-sm font-bold w-8 h-8 mx-auto flex items-center justify-center rounded-full mt-0.5 ${
-                    isToday ? 'bg-primary text-white' : 'text-text-primary'
-                  }`}
-                >
-                  {day.getDate()}
-                </p>
-              </div>
-            );
-          })}
-        </div>
+      <div className="flex flex-col h-full min-h-0 overflow-hidden">
+        {/* Single scroll container — handles both axes */}
+        <div
+          className="flex-1 overflow-auto min-h-0"
+          style={{ touchAction: 'pan-x pan-y' }}
+        >
+          {/* min-width forces horizontal scroll on narrow viewports */}
+          <div style={{ minWidth: `${days.length * MIN_COL_WIDTH + 56}px` }}>
 
-        {/* All-day banner */}
-        {allDayEvents.length > 0 && (
-          <div className="flex border-b border-border bg-surface flex-shrink-0">
-            <div className="w-14 flex-shrink-0 flex items-center justify-end pr-2 py-1">
-              <span className="text-xs text-text-secondary">all-day</span>
-            </div>
-            {days.map((_, dayIdx) => (
-              <div
-                key={dayIdx}
-                className="flex-1 border-l border-border py-1 px-0.5 min-h-[32px]"
-              >
-                {allDayByDay[dayIdx].map((ev) => (
-                  <div
-                    key={ev.id}
-                    className="rounded px-1.5 py-0.5 text-white text-xs font-medium mb-0.5 truncate cursor-pointer hover:opacity-90"
-                    style={{ backgroundColor: ev.color }}
-                    onClick={() => onEventClick(ev)}
-                  >
-                    {ev.title}
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Scrollable time body */}
-        <div className="flex-1 overflow-auto">
-          <div className="flex relative" style={{ minHeight: `${24 * HOUR_HEIGHT}px` }}>
-            {/* Time axis */}
-            <div className="w-14 flex-shrink-0 relative" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
-              {hours.map((h) => (
-                <div
-                  key={h}
-                  className="absolute right-2 text-xs text-text-muted whitespace-nowrap select-none"
-                  style={{ top: h * HOUR_HEIGHT - 8 }}
-                >
-                  {h > 0 ? formatHour(h) : ''}
-                </div>
-              ))}
-            </div>
-
-            {/* Day columns */}
-            <div ref={gridRef} className="flex flex-1 overflow-x-auto">
-              {days.map((day, dayIdx) => {
-                const dayEvents = eventsByDay[dayIdx];
-                const geomMap = computeGeometry(dayEvents);
+            {/* Day headers — sticky top */}
+            <div className="sticky top-0 z-20 flex border-b border-border bg-surface">
+              {/* Corner spacer — sticky left so it anchors at top-left */}
+              <div className="w-14 flex-shrink-0 sticky left-0 z-30 bg-surface" />
+              {days.map((day, i) => {
                 const isToday = isSameDay(day, today);
-                const nowMinutes = isToday
-                  ? today.getHours() * 60 + today.getMinutes()
-                  : -1;
-
                 return (
                   <div
-                    key={dayIdx}
-                    className="flex-1 relative border-l border-border"
-                    style={{ height: `${24 * HOUR_HEIGHT}px`, minWidth: 80 }}
+                    key={i}
+                    className="flex-1 text-center py-2 border-l border-border"
+                    style={{ minWidth: MIN_COL_WIDTH }}
                   >
-                    {hours.map((h) => (
-                      <div
-                        key={h}
-                        className="absolute left-0 right-0 border-t border-border/50 cursor-pointer hover:bg-primary/5 transition-colors"
-                        style={{ top: h * HOUR_HEIGHT, height: HOUR_HEIGHT }}
-                        onClick={() => onSlotClick(day, h)}
-                      />
-                    ))}
-
-                    {/* Current time indicator */}
-                    {nowMinutes >= 0 && (
-                      <div
-                        className="absolute left-0 right-0 z-20 pointer-events-none"
-                        style={{ top: (nowMinutes / 60) * HOUR_HEIGHT }}
-                      >
-                        <div className="flex items-center">
-                          <div className="w-2.5 h-2.5 rounded-full bg-primary flex-shrink-0 -ml-1.5" />
-                          <div className="flex-1 h-0.5 bg-primary" />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Events */}
-                    {dayEvents.map((ev) => {
-                      const geom = geomMap.get(ev.id);
-                      if (!geom) return null;
-                      const colWidth = gridRef.current
-                        ? gridRef.current.clientWidth / days.length
-                        : 120;
-                      return (
-                        <DraggableEventBlock
-                          key={ev.id}
-                          event={ev}
-                          geom={geom}
-                          colWidth={colWidth}
-                          onClick={() => onEventClick(ev)}
-                          isDragging={activeDragId === ev.id}
-                        />
-                      );
-                    })}
+                    <p className="text-xs text-text-secondary uppercase tracking-wide">
+                      {day.toLocaleDateString('en-US', { weekday: 'short' })}
+                    </p>
+                    <p
+                      className={`text-sm font-bold w-8 h-8 mx-auto flex items-center justify-center rounded-full mt-0.5 ${
+                        isToday ? 'bg-primary text-white' : 'text-text-primary'
+                      }`}
+                    >
+                      {day.getDate()}
+                    </p>
                   </div>
                 );
               })}
             </div>
+
+            {/* All-day banner */}
+            {allDayEvents.length > 0 && (
+              <div className="flex border-b border-border bg-surface">
+                <div className="w-14 flex-shrink-0 sticky left-0 z-10 bg-surface flex items-center justify-end pr-2 py-1">
+                  <span className="text-xs text-text-secondary">all-day</span>
+                </div>
+                {days.map((_, dayIdx) => (
+                  <div
+                    key={dayIdx}
+                    className="flex-1 border-l border-border py-1 px-0.5 min-h-[32px]"
+                    style={{ minWidth: MIN_COL_WIDTH }}
+                  >
+                    {allDayByDay[dayIdx].map((ev) => (
+                      <div
+                        key={ev.id}
+                        className="rounded px-1.5 py-0.5 text-white text-xs font-medium mb-0.5 truncate cursor-pointer hover:opacity-90"
+                        style={{ backgroundColor: ev.color }}
+                        onClick={() => onEventClick(ev)}
+                      >
+                        {ev.title}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Time grid body */}
+            <div className="flex" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
+              {/* Time axis — sticky left */}
+              <div
+                className="w-14 flex-shrink-0 sticky left-0 z-10 bg-surface relative border-r border-border/30"
+                style={{ height: `${24 * HOUR_HEIGHT}px` }}
+              >
+                {hours.map((h) => (
+                  <div
+                    key={h}
+                    className="absolute right-2 text-xs text-text-muted whitespace-nowrap select-none"
+                    style={{ top: h * HOUR_HEIGHT - 8 }}
+                  >
+                    {h > 0 ? formatHour(h) : ''}
+                  </div>
+                ))}
+              </div>
+
+              {/* Day columns */}
+              <div ref={gridRef} className="flex flex-1">
+                {days.map((day, dayIdx) => {
+                  const dayEvents = eventsByDay[dayIdx];
+                  const geomMap = computeGeometry(dayEvents);
+                  const isToday = isSameDay(day, today);
+                  const nowMinutes = isToday
+                    ? today.getHours() * 60 + today.getMinutes()
+                    : -1;
+
+                  return (
+                    <div
+                      key={dayIdx}
+                      className="flex-1 relative border-l border-border"
+                      style={{ height: `${24 * HOUR_HEIGHT}px`, minWidth: MIN_COL_WIDTH }}
+                    >
+                      {hours.map((h) => (
+                        <div
+                          key={h}
+                          className="absolute left-0 right-0 border-t border-border/50 cursor-pointer hover:bg-primary/5 transition-colors"
+                          style={{ top: h * HOUR_HEIGHT, height: HOUR_HEIGHT }}
+                          onClick={() => onSlotClick(day, h)}
+                        />
+                      ))}
+
+                      {/* Current time indicator */}
+                      {nowMinutes >= 0 && (
+                        <div
+                          className="absolute left-0 right-0 z-20 pointer-events-none"
+                          style={{ top: (nowMinutes / 60) * HOUR_HEIGHT }}
+                        >
+                          <div className="flex items-center">
+                            <div className="w-2.5 h-2.5 rounded-full bg-primary flex-shrink-0 -ml-1.5" />
+                            <div className="flex-1 h-0.5 bg-primary" />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Events */}
+                      {dayEvents.map((ev) => {
+                        const geom = geomMap.get(ev.id);
+                        if (!geom) return null;
+                        // scrollWidth gives the actual rendered column width even when horizontally scrolled
+                        const colWidth = gridRef.current
+                          ? gridRef.current.scrollWidth / days.length
+                          : MIN_COL_WIDTH;
+                        return (
+                          <DraggableEventBlock
+                            key={ev.id}
+                            event={ev}
+                            geom={geom}
+                            colWidth={colWidth}
+                            onClick={() => onEventClick(ev)}
+                            isDragging={activeDragId === ev.id}
+                          />
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
