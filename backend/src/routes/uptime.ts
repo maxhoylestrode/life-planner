@@ -14,9 +14,10 @@ router.get('/heartbeat', async (req: AuthRequest, res: Response): Promise<void> 
   }
 
   try {
+    const base = String(url).replace(/\/+$/, '');
     const [pageRes, heartbeatRes] = await Promise.all([
-      fetch(`${url}/api/status-page/${slug}`),
-      fetch(`${url}/api/status-page/heartbeat/${slug}`),
+      fetch(`${base}/api/status-page/${slug}`),
+      fetch(`${base}/api/status-page/heartbeat/${slug}`),
     ]);
 
     if (!pageRes.ok || !heartbeatRes.ok) {
