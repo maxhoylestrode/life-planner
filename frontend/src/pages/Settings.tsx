@@ -72,15 +72,19 @@ export default function Settings() {
   const [workMins, setWorkMins] = useState('');
   const [breakMins, setBreakMins] = useState('');
   const [weatherCity, setWeatherCity] = useState('');
+  const [kumaUrl, setKumaUrl] = useState('');
+  const [kumaSlug, setKumaSlug] = useState('');
 
   useEffect(() => {
     if (preferences) {
       setWorkMins(String(preferences.coffeeWorkMins));
       setBreakMins(String(preferences.coffeeBreakMins));
       setWeatherCity(preferences.weatherCity ?? 'London');
+      setKumaUrl(preferences.uptimeKumaUrl ?? '');
+      setKumaSlug(preferences.uptimeKumaSlug ?? '');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preferences?.coffeeWorkMins, preferences?.coffeeBreakMins, preferences?.weatherCity]);
+  }, [preferences?.coffeeWorkMins, preferences?.coffeeBreakMins, preferences?.weatherCity, preferences?.uptimeKumaUrl, preferences?.uptimeKumaSlug]);
 
   if (isLoading || !preferences) {
     return (
@@ -387,6 +391,28 @@ export default function Settings() {
                   </button>
                 ))}
               </div>
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary mb-1.5 block">Uptime Kuma URL</label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="e.g. http://apexpi.local:3001"
+                value={kumaUrl}
+                onChange={(e) => setKumaUrl(e.target.value)}
+                onBlur={() => save({ uptimeKumaUrl: kumaUrl.trim() })}
+              />
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary mb-1.5 block">Status Page Slug</label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="e.g. dash"
+                value={kumaSlug}
+                onChange={(e) => setKumaSlug(e.target.value)}
+                onBlur={() => save({ uptimeKumaSlug: kumaSlug.trim() })}
+              />
             </div>
           </div>
         </SectionCard>

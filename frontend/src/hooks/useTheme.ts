@@ -27,6 +27,8 @@ export interface UserPreferences {
   coffeeBreakMins: number;
   weatherCity: string;
   weatherUnit: string;
+  uptimeKumaUrl: string;
+  uptimeKumaSlug: string;
   createdAt: string;
   updatedAt: string;
 }

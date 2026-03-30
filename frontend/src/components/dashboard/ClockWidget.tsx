@@ -21,15 +21,15 @@ export default function ClockWidget() {
 
   return (
     <div className="card p-6 flex flex-col justify-center">
-      <div className="flex items-end gap-2">
-        <span className="text-8xl font-bold text-text-primary leading-none tracking-tight tabular-nums">
+      <div className="flex items-end gap-3">
+        <span className="font-bold text-text-primary leading-none tracking-tight tabular-nums" style={{ fontSize: 'clamp(4rem, 10vw, 7rem)' }}>
           {timeStr}
         </span>
-        <span className="text-4xl font-semibold text-text-muted leading-none mb-1 tabular-nums">
+        <span className="font-semibold text-text-muted leading-none mb-1 tabular-nums text-5xl">
           {secondsStr}
         </span>
       </div>
-      <p className="text-text-secondary mt-2 text-base">{dateStr}</p>
+      <p className="text-text-secondary mt-2 text-lg">{dateStr}</p>
     </div>
   );
 }

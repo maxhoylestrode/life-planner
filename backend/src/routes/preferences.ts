@@ -91,6 +91,8 @@ router.put('/', async (req: AuthRequest, res: Response): Promise<void> => {
 
     // Dashboard settings
     if ('weatherCity' in body) data.weatherCity = String(body.weatherCity).slice(0, 100);
+    if ('uptimeKumaUrl' in body) data.uptimeKumaUrl = String(body.uptimeKumaUrl).slice(0, 200);
+    if ('uptimeKumaSlug' in body) data.uptimeKumaSlug = String(body.uptimeKumaSlug).slice(0, 100);
     if ('weatherUnit' in body) {
       if (!['metric', 'imperial'].includes(String(body.weatherUnit))) {
         res.status(400).json({ error: 'weatherUnit must be metric or imperial' });

@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { FileText, Calendar, CheckSquare, LogOut, Sparkles, X, Coffee, Settings } from 'lucide-react';
+import { FileText, Calendar, CheckSquare, LogOut, Sparkles, X, Coffee, Settings, LayoutDashboard } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 interface SidebarProps {
@@ -87,6 +87,14 @@ export default function Sidebar({ onClose }: SidebarProps) {
 
       {/* Settings + Logout */}
       <div className="px-3 py-4 border-t border-border space-y-1">
+        <NavLink
+          to="/dashboard"
+          onClick={onClose}
+          className={({ isActive }) => `nav-item ${isActive ? 'nav-item-active' : ''}`}
+        >
+          <LayoutDashboard className="w-5 h-5 flex-shrink-0" />
+          <span>Dashboard</span>
+        </NavLink>
         <NavLink
           to="/settings"
           onClick={onClose}

@@ -65,8 +65,10 @@ model UserPreferences {
   coffeeBreakMins     Int    @default(5)
 
   // Dashboard widget settings
-  weatherCity String @default("London")
-  weatherUnit String @default("metric")
+  weatherCity    String @default("London")
+  weatherUnit    String @default("metric")
+  uptimeKumaUrl  String @default("")
+  uptimeKumaSlug String @default("")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
