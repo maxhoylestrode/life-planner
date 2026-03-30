@@ -11,6 +11,7 @@ import Calendar from './pages/Calendar';
 import Todos from './pages/Todos';
 import CoffeeTimer from './pages/CoffeeTimer';
 import Settings from './pages/Settings';
+import Dashboard from './pages/Dashboard';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -80,6 +81,14 @@ function AppRoutes() {
         <Route path="coffee" element={<CoffeeTimer />} />
         <Route path="settings" element={<Settings />} />
       </Route>
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

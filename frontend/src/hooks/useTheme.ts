@@ -25,6 +25,8 @@ export interface UserPreferences {
   defaultCalendarView: string;
   coffeeWorkMins: number;
   coffeeBreakMins: number;
+  weatherCity: string;
+  weatherUnit: string;
   createdAt: string;
   updatedAt: string;
 }

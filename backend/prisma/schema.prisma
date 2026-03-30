@@ -64,6 +64,10 @@ model UserPreferences {
   coffeeWorkMins      Int    @default(30)
   coffeeBreakMins     Int    @default(5)
 
+  // Dashboard widget settings
+  weatherCity String @default("London")
+  weatherUnit String @default("metric")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

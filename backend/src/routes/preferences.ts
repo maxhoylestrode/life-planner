@@ -89,6 +89,16 @@ router.put('/', async (req: AuthRequest, res: Response): Promise<void> => {
       data.coffeeBreakMins = v;
     }
 
+    // Dashboard settings
+    if ('weatherCity' in body) data.weatherCity = String(body.weatherCity).slice(0, 100);
+    if ('weatherUnit' in body) {
+      if (!['metric', 'imperial'].includes(String(body.weatherUnit))) {
+        res.status(400).json({ error: 'weatherUnit must be metric or imperial' });
+        return;
+      }
+      data.weatherUnit = String(body.weatherUnit);
+    }
+
     const prefs = await prisma.userPreferences.upsert({
       where: { userId: req.userId! },
       create: { userId: req.userId!, ...data },

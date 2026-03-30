@@ -8,6 +8,7 @@ import {
   User,
   AlertTriangle,
   Check,
+  LayoutDashboard,
 } from 'lucide-react';
 import { useTheme, type PreferencesPatch } from '../hooks/useTheme';
 import { useAuth } from '../hooks/useAuth';
@@ -70,14 +71,16 @@ export default function Settings() {
   const { user } = useAuth();
   const [workMins, setWorkMins] = useState('');
   const [breakMins, setBreakMins] = useState('');
+  const [weatherCity, setWeatherCity] = useState('');
 
   useEffect(() => {
     if (preferences) {
       setWorkMins(String(preferences.coffeeWorkMins));
       setBreakMins(String(preferences.coffeeBreakMins));
+      setWeatherCity(preferences.weatherCity ?? 'London');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preferences?.coffeeWorkMins, preferences?.coffeeBreakMins]);
+  }, [preferences?.coffeeWorkMins, preferences?.coffeeBreakMins, preferences?.weatherCity]);
 
   if (isLoading || !preferences) {
     return (
@@ -341,6 +344,49 @@ export default function Settings() {
                 onBlur={handleBreakBlur}
                 className="input-field"
               />
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* ── Dashboard ── */}
+        <SectionCard>
+          <SectionTitle icon={LayoutDashboard} title="Dashboard" />
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs text-text-secondary mb-1.5 block">Weather Location</label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="e.g. London, Tokyo, New York"
+                value={weatherCity}
+                onChange={(e) => setWeatherCity(e.target.value)}
+                onBlur={() => {
+                  const v = weatherCity.trim();
+                  if (v) save({ weatherCity: v });
+                  else setWeatherCity(preferences.weatherCity ?? 'London');
+                }}
+              />
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary mb-1.5 block">Temperature Unit</label>
+              <div className="flex gap-2">
+                {([
+                  { value: 'metric', label: 'Metric (°C)' },
+                  { value: 'imperial', label: 'Imperial (°F)' },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => save({ weatherUnit: opt.value })}
+                    className={`flex-1 py-2 px-3 rounded-xl border text-sm font-medium transition-all ${
+                      (preferences.weatherUnit ?? 'metric') === opt.value
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border text-text-secondary hover:border-primary/40'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </SectionCard>

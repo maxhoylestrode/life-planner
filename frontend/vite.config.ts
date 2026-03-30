@@ -15,7 +15,7 @@ export default defineConfig({
         theme_color: '#E8825A',
         background_color: '#FFF8F0',
         display: 'standalone',
-        orientation: 'portrait',
+        orientation: 'any',
         scope: '/',
         start_url: '/',
         icons: [
@@ -49,6 +49,11 @@ export default defineConfig({
             name: 'Todos',
             url: '/todos',
             description: 'Check your todos',
+          },
+          {
+            name: 'Dashboard',
+            url: '/dashboard',
+            description: 'Tablet dashboard view',
           },
         ],
       },
