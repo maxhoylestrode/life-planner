@@ -1,5 +1,5 @@
-import axios from 'axios';
 import { useQuery } from '@tanstack/react-query';
+import apiClient from '../api/client';
 
 export interface MonitorHeartbeat {
   status: 0 | 1;
@@ -30,20 +30,20 @@ export function useUptimeKuma(baseUrl: string, slug: string): UseUptimeKumaRetur
   const query = useQuery({
     queryKey: ['uptime-kuma', baseUrl, slug],
     queryFn: async () => {
-      const [pageRes, heartbeatRes] = await Promise.all([
-        axios.get(`${baseUrl}/api/status-page/${slug}`),
-        axios.get(`${baseUrl}/api/status-page/heartbeat/${slug}`),
-      ]);
+      const res = await apiClient.get('/uptime/heartbeat', {
+        params: { url: baseUrl, slug },
+      });
+      const { pageData, heartbeatData } = res.data;
 
       const monitors: Array<{ id: number; name: string }> =
-        pageRes.data.publicGroupList?.flatMap(
+        pageData.publicGroupList?.flatMap(
           (g: { monitorList: Array<{ id: number; name: string }> }) => g.monitorList
         ) ?? [];
 
       const heartbeatList: Record<string, MonitorHeartbeat[]> =
-        heartbeatRes.data.heartbeatList ?? {};
+        heartbeatData.heartbeatList ?? {};
       const uptimeList: Record<string, number> =
-        heartbeatRes.data.uptimeList ?? {};
+        heartbeatData.uptimeList ?? {};
 
       return monitors.map((m): MonitorStatus => {
         const beats: MonitorHeartbeat[] = heartbeatList[String(m.id)] ?? [];
